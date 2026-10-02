@@ -50,7 +50,7 @@ class ControllerManager(private val context: Context) {
     }.distinctUntilChanged()
 
     private fun read(): List<ControllerInfo> =
-        InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }
+        InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }
             .filter { isGamepad(it) }
             .map { toInfo(it) }
 
