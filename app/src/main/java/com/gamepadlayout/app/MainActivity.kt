@@ -1,6 +1,6 @@
 package com.gamepadlayout.app
 
-import android.content.pm.ActivityInfo
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -32,10 +32,13 @@ class MainActivity : ComponentActivity() {
                 it.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
-        // Estado inicial = Modo Console (a configuração salva é aplicada logo após o carregamento).
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        // A orientação horizontal é fixa no AndroidManifest (sensorLandscape).
         ConsoleMode.reapplyBars(this)
         GamepadInput.onTrigger = { activate(it) }
+        // Quando o app é a tela inicial, o botão Home do Android volta para a Home do app.
+        addOnNewIntentListener { intent ->
+            if (intent.hasCategory(Intent.CATEGORY_HOME)) GamepadInput.homeRequests.tryEmit(Unit)
+        }
         setContent { GamepadLayoutRoot() }
     }
 
@@ -77,12 +80,12 @@ class MainActivity : ComponentActivity() {
         val tvDrives = TvNav.controlling && !GamepadInput.overlayOpen
 
         // Confirmar / Opções precisam de DOWN+UP reais para o Compose reconhecer o clique.
-        if (!isTrigger && !(tvDrives && action == PadAction.CONFIRM)) {
-            when (action) {
-                PadAction.CONFIRM -> return super.dispatchKeyEvent(remap(event, KeyEvent.KEYCODE_DPAD_CENTER))
-                PadAction.OPTIONS -> return super.dispatchKeyEvent(remap(event, KeyEvent.KEYCODE_MENU))
-                else -> {}
-            }
+        val passthrough = !isTrigger && !(tvDrives && action == PadAction.CONFIRM) &&
+            (action == PadAction.CONFIRM || action == PadAction.OPTIONS)
+        if (passthrough) {
+            if (down && event.repeatCount == 0) GamepadInput.rawButtons.tryEmit(btn)
+            val newCode = if (action == PadAction.CONFIRM) KeyEvent.KEYCODE_DPAD_CENTER else KeyEvent.KEYCODE_MENU
+            return super.dispatchKeyEvent(remap(event, newCode))
         }
         if (down && event.repeatCount == 0) activate(btn)
         return true
@@ -94,7 +97,12 @@ class MainActivity : ComponentActivity() {
         if (now - lastFire[btn.ordinal] < 150) return // evita tecla + eixo duplicados
         lastFire[btn.ordinal] = now
         GamepadInput.lastButton.value = btn
+        GamepadInput.rawButtons.tryEmit(btn)
         val action = GamepadInput.actionFor(btn)
+        // Com o teclado do controle aberto, só Voltar/Confirmar/Opções continuam valendo.
+        if (GamepadInput.keyboardOpen &&
+            action != PadAction.BACK && action != PadAction.CONFIRM && action != PadAction.OPTIONS
+        ) return
         when (action) {
             PadAction.CONFIRM ->
                 if (TvNav.controlling && !GamepadInput.overlayOpen) TvNav.confirm()
@@ -125,12 +133,15 @@ class MainActivity : ComponentActivity() {
             ev.action == MotionEvent.ACTION_MOVE
         if (joystick) {
             GamepadInput.onMotion(ev)
-            if (GamepadInput.browserActive) {
+            if (GamepadInput.browserActive && !GamepadInput.keyboardOpen) {
                 // No navegador o analógico é mouse; só o D-pad (hat) vira teclas de foco.
                 hatNavigate(ev)
                 return true
             }
-            // Fora do navegador, o Android converte analógico/hat em D-pad automaticamente.
+            if (GamepadInput.browserActive) {
+                // Teclado aberto: analógico e hat navegam pelas teclas (o Android converte em D-pad).
+                return super.dispatchGenericMotionEvent(ev)
+            }
         }
         return super.dispatchGenericMotionEvent(ev)
     }

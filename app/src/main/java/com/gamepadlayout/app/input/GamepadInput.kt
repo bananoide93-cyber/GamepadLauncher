@@ -17,6 +17,8 @@ enum class PadButton { A, B, X, Y, L1, R1, L2, R2, L3, R3, START, SELECT }
 object GamepadInput {
     @Volatile var browserActive = false
     @Volatile var overlayOpen = false
+    @Volatile var keyboardOpen = false
+    @Volatile var controllerConnected = false
     @Volatile var mapping: Map<PadButton, PadAction> = ControllerMapping.defaults
 
     @Volatile var leftX = 0f
@@ -26,6 +28,12 @@ object GamepadInput {
 
     /** Ações "de evento" (menu rápido, ações do navegador). */
     val events = MutableSharedFlow<PadAction>(extraBufferCapacity = 16)
+
+    /** Botões físicos crus (usados pelo teclado do controle: X apaga, Y espaço, etc.). */
+    val rawButtons = MutableSharedFlow<PadButton>(extraBufferCapacity = 16)
+
+    /** Pedidos de "ir para o início" (botão Home do Android quando o app é a tela inicial). */
+    val homeRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /** Último botão físico pressionado (tela de teste do controle). */
     val lastButton = MutableStateFlow<PadButton?>(null)

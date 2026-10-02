@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,17 +28,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gamepadlayout.app.data.GameTag
 import com.gamepadlayout.app.data.LibraryApp
 import com.gamepadlayout.app.ui.components.AddTile
 import com.gamepadlayout.app.ui.components.AppIcon
 import com.gamepadlayout.app.ui.components.ConsoleSurface
 import com.gamepadlayout.app.ui.components.GameTile
 import com.gamepadlayout.app.ui.components.ScreenScaffold
+import com.gamepadlayout.app.ui.components.SectionTitle
 import com.gamepadlayout.app.ui.theme.LocalConsoleStyle
 
 @Composable
 fun LibraryScreen(
     games: List<LibraryApp>,
+    tags: Map<String, GameTag>,
     onBack: () -> Unit,
     onLaunch: (LibraryApp) -> Unit,
     onAdd: () -> Unit,
@@ -45,6 +49,9 @@ fun LibraryScreen(
 ) {
     val st = LocalConsoleStyle.current
     val tile = (84 * st.iconScale).dp
+    val groups = GameTag.entries
+        .map { t -> t to games.filter { (tags[it.packageName] ?: GameTag.UNKNOWN) == t } }
+        .filter { it.second.isNotEmpty() }
     ScreenScaffold("Jogos", onBack) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = tile + 24.dp),
@@ -53,10 +60,18 @@ fun LibraryScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(games, key = { it.packageName }) { g ->
-                GameTile(g, tile, onClick = { onLaunch(g) }, onOptions = { onOptions(g) })
+            groups.forEach { (tag, list) ->
+                item(key = "header-" + tag.name, span = { GridItemSpan(maxLineSpan) }) {
+                    Column {
+                        SectionTitle(tag.label)
+                        Text(tag.hint, fontSize = 11.sp, color = Color.White.copy(alpha = 0.55f))
+                    }
+                }
+                items(list, key = { it.packageName }) { g ->
+                    GameTile(g, tile, onClick = { onLaunch(g) }, onOptions = { onOptions(g) })
+                }
             }
-            item { AddTile(tile, onClick = onAdd) }
+            item(key = "add-tile") { AddTile(tile, onClick = onAdd) }
         }
     }
 }

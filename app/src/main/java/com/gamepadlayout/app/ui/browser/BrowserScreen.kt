@@ -1,9 +1,11 @@
 package com.gamepadlayout.app.ui.browser
 
+import android.content.Context
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,7 +49,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,6 +71,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -90,6 +96,8 @@ import kotlin.math.roundToInt
 
 private const val DEADZONE = 0.12f
 
+private enum class KbTarget { ADDRESS, PAGE }
+
 /** Toque sintético na WebView (clique normal ou pressionar-e-segurar = clique direito/menu de contexto). */
 private suspend fun clickAt(view: WebView?, p: Offset, long: Boolean) {
     view ?: return
@@ -107,13 +115,15 @@ private suspend fun clickAt(view: WebView?, p: Offset, long: Boolean) {
 }
 
 @Composable
-fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
+fun BrowserScreen(settings: AppSettings, hasController: Boolean, onExit: () -> Unit) {
     val ctx = LocalContext.current
     val st = LocalConsoleStyle.current
     val cfg by rememberUpdatedState(settings)
     val exit by rememberUpdatedState(onExit)
+    val padConnected by rememberUpdatedState(hasController)
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val view = LocalView.current
 
     val controller = remember { BrowserController(ctx) { cfg.zoom }.also { it.newTab() } }
 
@@ -121,6 +131,7 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
         GamepadInput.browserActive = true
         onDispose {
             GamepadInput.browserActive = false
+            GamepadInput.keyboardOpen = false
             controller.destroy()
         }
     }
@@ -131,7 +142,62 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
     var cursorVisible by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
     var addrFocused by remember { mutableStateOf(false) }
+    var kb by remember { mutableStateOf<KbTarget?>(null) }
+    var pageBuffer by remember { mutableStateOf("") }
     val tab = controller.current
+
+    SideEffect { GamepadInput.keyboardOpen = kb != null }
+
+    fun hideSystemKeyboard() {
+        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
+    }
+
+    fun openKeyboard(target: KbTarget) {
+        if (target == KbTarget.ADDRESS) address = "" else pageBuffer = ""
+        kb = target
+    }
+
+    fun closeKeyboard() {
+        if (kb == KbTarget.ADDRESS) address = controller.current?.url ?: ""
+        kb = null
+    }
+
+    fun typeChar(s: String) {
+        when (kb) {
+            KbTarget.ADDRESS -> address += s
+            KbTarget.PAGE -> {
+                pageBuffer += s
+                controller.current?.webView?.pageType(s)
+            }
+            null -> {}
+        }
+    }
+
+    fun backspaceChar() {
+        when (kb) {
+            KbTarget.ADDRESS -> address = address.dropLast(1)
+            KbTarget.PAGE -> {
+                pageBuffer = pageBuffer.dropLast(1)
+                controller.current?.webView?.pageBackspace()
+            }
+            null -> {}
+        }
+    }
+
+    fun submitKeyboard() {
+        when (kb) {
+            KbTarget.ADDRESS -> {
+                controller.current?.webView?.loadUrl(normalizeUrl(address))
+                kb = null
+            }
+            KbTarget.PAGE -> {
+                controller.current?.webView?.pageEnter()
+                kb = null
+            }
+            null -> {}
+        }
+    }
 
     fun goBackOrExit() {
         val wv = controller.current?.webView
@@ -139,11 +205,32 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
     }
 
     BackHandler { goBackOrExit() }
+    // Registrado depois: tem prioridade e fecha o teclado antes de voltar a página.
+    BackHandler(enabled = kb != null) { closeKeyboard() }
 
     val tabUrl = tab?.url
-    LaunchedEffect(tabUrl, tab?.id) { if (!addrFocused) address = tabUrl ?: "" }
+    LaunchedEffect(tabUrl, tab?.id) { if (!addrFocused && kb != KbTarget.ADDRESS) address = tabUrl ?: "" }
     LaunchedEffect(area.width, area.height) {
         if (area != IntSize.Zero) cursor = Offset(area.width / 2f, area.height / 2f)
+    }
+
+    // Campo de texto da página ganhou foco: com controle, abre o teclado do controle
+    val editTick = tab?.editTick ?: 0
+    val seenTick = remember(tab?.id) { mutableIntStateOf(editTick) }
+    LaunchedEffect(tab?.id, editTick) {
+        if (editTick > seenTick.intValue) {
+            seenTick.intValue = editTick
+            if (padConnected && kb == null) openKeyboard(KbTarget.PAGE)
+        }
+    }
+    // Esconde o teclado do sistema enquanto o teclado do controle está aberto
+    LaunchedEffect(kb) {
+        if (kb != null) {
+            repeat(4) {
+                delay(250)
+                hideSystemKeyboard()
+            }
+        }
     }
 
     // Ações do controle (mapeadas em Controle > Mapeamento de botões)
@@ -159,6 +246,7 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                 PadAction.FORWARD -> wv?.let { if (it.canGoForward()) it.goForward() }
                 PadAction.NEW_TAB -> controller.newTab()
                 PadAction.CLOSE_TAB -> if (controller.closeTab(controller.selected)) exit()
+                PadAction.KEYBOARD -> if (kb == null) openKeyboard(KbTarget.PAGE) else closeKeyboard()
                 else -> {}
             }
         }
@@ -171,6 +259,7 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
             val now = withFrameNanos { it }
             val dt = ((now - last) / 1_000_000_000f).coerceAtMost(0.05f)
             last = now
+            if (kb != null) continue // com o teclado aberto o analógico navega nas teclas
             val x = GamepadInput.leftX
             val y = GamepadInput.leftY
             val mag = hypot(x, y)
@@ -191,7 +280,13 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
     }
 
     ConsoleBackground {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .focusProperties { canFocus = kb == null }
+        ) {
             // Barra de endereço
             Row(
                 Modifier.fillMaxWidth(),
@@ -202,16 +297,24 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                 ToolButton(Icons.AutoMirrored.Rounded.ArrowBack, tab?.canGoBack == true) { tab?.webView?.goBack() }
                 ToolButton(Icons.AutoMirrored.Rounded.ArrowForward, tab?.canGoForward == true) { tab?.webView?.goForward() }
                 ToolButton(Icons.Rounded.Refresh) { tab?.webView?.reload() }
+                val addrShape = RoundedCornerShape(19.dp)
                 Box(
                     Modifier
                         .weight(1f)
                         .height(38.dp)
-                        .clip(RoundedCornerShape(19.dp))
+                        .clip(addrShape)
                         .background(Color.White.copy(alpha = 0.10f))
                         .border(
                             if (addrFocused) 2.dp else 1.dp,
                             if (addrFocused) st.accentSoft else Color.White.copy(alpha = 0.08f),
-                            RoundedCornerShape(19.dp)
+                            addrShape
+                        )
+                        .then(
+                            if (hasController) {
+                                Modifier
+                                    .onFocusChanged { addrFocused = it.isFocused }
+                                    .clickable { openKeyboard(KbTarget.ADDRESS) }
+                            } else Modifier
                         )
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
@@ -219,6 +322,7 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                     BasicTextField(
                         value = address,
                         onValueChange = { address = it },
+                        enabled = !hasController,
                         singleLine = true,
                         textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
                         cursorBrush = SolidColor(Color.White),
@@ -227,9 +331,12 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                             controller.current?.webView?.loadUrl(normalizeUrl(address))
                             focusManager.clearFocus()
                         }),
-                        modifier = Modifier.fillMaxWidth().onFocusChanged { addrFocused = it.isFocused }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (hasController) Modifier else Modifier.onFocusChanged { addrFocused = it.isFocused })
                     )
                 }
+                if (hasController) ToolButton(Icons.Rounded.Keyboard) { openKeyboard(KbTarget.PAGE) }
                 ToolButton(Icons.Rounded.Add) { controller.newTab() }
             }
             Spacer(Modifier.height(6.dp))
@@ -305,7 +412,7 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                         }
                     }
                 )
-                if (cursorVisible) {
+                if (cursorVisible && kb == null) {
                     Box(
                         Modifier
                             .offset {
@@ -321,6 +428,18 @@ fun BrowserScreen(settings: AppSettings, onExit: () -> Unit) {
                     )
                 }
             }
+        }
+        // Teclado do controle (por cima da parte de baixo da página)
+        if (kb != null) {
+            GamepadKeyboard(
+                title = if (kb == KbTarget.ADDRESS) "Endereço ou busca" else "Texto na página",
+                preview = if (kb == KbTarget.ADDRESS) address else pageBuffer,
+                onChar = { typeChar(it) },
+                onBackspace = { backspaceChar() },
+                onSubmit = { submitKeyboard() },
+                onClose = { closeKeyboard() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

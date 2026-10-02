@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,11 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
         }.sortedWith(compareBy({ order[it.packageName] ?: Int.MAX_VALUE }, { it.label.lowercase() }))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Sugestões do catálogo + escolhas do usuário (as do usuário vencem). */
+    val tags: StateFlow<Map<String, GameTag>> = repo.tags
+        .map { GameCatalog.defaults + it }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, GameCatalog.defaults)
+
     init { refresh() }
 
     fun refresh() {
@@ -53,6 +59,7 @@ class LibraryViewModel(app: Application) : AndroidViewModel(app) {
     fun add(pkg: String) { viewModelScope.launch { repo.add(pkg) } }
     fun remove(pkg: String) { viewModelScope.launch { repo.remove(pkg) } }
     fun markPlayed(pkg: String) { viewModelScope.launch { repo.markPlayed(pkg) } }
+    fun setTag(pkg: String, tag: GameTag) { viewModelScope.launch { repo.setTag(pkg, tag) } }
     fun launch(pkg: String): Boolean = repo.launch(pkg)
 }
 

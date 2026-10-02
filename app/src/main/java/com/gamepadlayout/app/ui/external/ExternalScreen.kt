@@ -37,7 +37,6 @@ import com.gamepadlayout.app.ui.settings.ActionRow
 import com.gamepadlayout.app.ui.settings.Header
 import com.gamepadlayout.app.ui.settings.InfoCard
 import com.gamepadlayout.app.ui.settings.SettingRow
-import com.gamepadlayout.app.ui.settings.ToggleRow
 import com.gamepadlayout.app.ui.settings.cycle
 import com.gamepadlayout.app.system.SystemIntents
 
@@ -168,7 +167,7 @@ fun ExternalScreen(
                     { settingsVm.set(K.CAST_FPS, cycle(f, settings.castFps, -1)) },
                     { settingsVm.set(K.CAST_FPS, cycle(f, settings.castFps, 1)) })
             }
-            item { ToggleRow("Orientação: forçar horizontal ao transmitir", settings.castLandscape) { settingsVm.set(K.CAST_LANDSCAPE, it) } }
+            item { InfoCard("Orientação", "O Gamepad Layout fica sempre na horizontal, também durante a transmissão.") }
 
             item { Header("Áudio") }
             item {

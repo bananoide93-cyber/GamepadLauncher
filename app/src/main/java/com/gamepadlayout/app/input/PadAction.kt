@@ -12,6 +12,7 @@ enum class PadAction(val label: String) {
     TAB_PREV("Aba anterior"),
     RELOAD("Atualizar"),
     FORWARD("Avançar"),
+    KEYBOARD("Teclado na página (navegador)"),
     NEW_TAB("Nova aba"),
     CLOSE_TAB("Fechar aba"),
     NONE("Nenhuma")
@@ -31,7 +32,7 @@ object ControllerMapping {
         PadButton.L3 to PadAction.CLOSE_TAB,
         PadButton.R3 to PadAction.NEW_TAB,
         PadButton.START to PadAction.MENU,
-        PadButton.SELECT to PadAction.NONE
+        PadButton.SELECT to PadAction.KEYBOARD
     )
 
     fun parse(s: String): Map<PadButton, PadAction> {

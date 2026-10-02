@@ -28,3 +28,10 @@ Se o repositório já tiver histórico: `git push -u origin main --force`.
 - Áudio: apps não escolhem a saída; o app lista as saídas e abre o seletor do sistema.
 - Voltar ao app ao fechar um jogo: o Android decide; o app não força isso.
 - Bateria do controle: Android 12+ e só se o controle informar.
+
+## Novidades da v4
+- Tela sempre horizontal (fixa no AndroidManifest). O Modo Console agora só controla tela cheia e tela acesa.
+- Teclado operado por controle no navegador (endereço e campos de texto das páginas).
+- Foco inicial corrigido: o controle já seleciona o primeiro item de cada tela.
+- Jogos classificados: com suporte a controle, emuladores, precisam de mapeador (beta), sem classificação.
+- Botão Home do Android volta para a Home do app quando ele é a tela inicial.

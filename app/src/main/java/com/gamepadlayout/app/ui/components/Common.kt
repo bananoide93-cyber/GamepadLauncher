@@ -21,9 +21,15 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.platform.LocalFocusManager
+import com.gamepadlayout.app.input.GamepadInput
+import kotlinx.coroutines.delay
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -39,6 +45,12 @@ import com.gamepadlayout.app.ui.theme.LocalConsoleStyle
 
 @Composable
 fun ScreenScaffold(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val focusManager = LocalFocusManager.current
+    // Com controle conectado, foca o primeiro item da tela (evita ter de "tocar num botão" antes).
+    LaunchedEffect(Unit) {
+        delay(450)
+        if (GamepadInput.controllerConnected) focusManager.moveFocus(FocusDirection.Next)
+    }
     ConsoleBackground {
         Column(
             Modifier
@@ -47,7 +59,12 @@ fun ScreenScaffold(title: String, onBack: () -> Unit, content: @Composable Colum
                 .padding(horizontal = 28.dp, vertical = 12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ConsoleSurface(onClick = onBack, modifier = Modifier.size(40.dp), shape = CircleShape, focusScale = 1.1f) {
+                ConsoleSurface(
+                    onClick = onBack,
+                    modifier = Modifier.size(40.dp).focusProperties { canFocus = false },
+                    shape = CircleShape,
+                    focusScale = 1.1f
+                ) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Voltar",

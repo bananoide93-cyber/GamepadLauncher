@@ -6,6 +6,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.webkit.JavascriptInterface
+import org.json.JSONObject
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.URLUtil
@@ -36,6 +40,9 @@ class BrowserTab(val id: Int, val webView: WebView) {
     var progress by mutableIntStateOf(100)
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
+
+    /** Sobe cada vez que o usuário foca um campo de texto dentro da página. */
+    var editTick by mutableIntStateOf(0)
 }
 
 /** Gerencia abas (uma WebView por aba). As abas vivem enquanto o navegador estiver aberto. */
@@ -74,6 +81,7 @@ class BrowserController(private val context: Context, private val zoom: () -> In
             override fun onPageFinished(view: WebView?, url: String?) {
                 sync(view)
                 view?.title?.takeIf { it.isNotBlank() }?.let { tab.title = it }
+                view?.evaluateJavascript(EDIT_SCRIPT, null)
             }
 
             override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
@@ -95,6 +103,7 @@ class BrowserController(private val context: Context, private val zoom: () -> In
             }
         }
         wv.setDownloadListener { dlUrl, ua, cd, mime, _ -> download(dlUrl, ua, cd, mime) }
+        wv.addJavascriptInterface(GlBridge { tab.editTick++ }, "GL")
         tabs.add(tab)
         selected = tabs.lastIndex
         wv.loadUrl(url ?: HOME_URL)
@@ -143,4 +152,60 @@ class BrowserController(private val context: Context, private val zoom: () -> In
         tabs.toList().forEach { destroyTab(it) }
         tabs.clear()
     }
+}
+
+/** Ponte JS -> app: avisa quando um campo de texto da página ganha foco. */
+class GlBridge(private val onEdit: () -> Unit) {
+    private val main = Handler(Looper.getMainLooper())
+
+    @JavascriptInterface
+    fun onEditable(v: Boolean) {
+        if (v) main.post { onEdit() }
+    }
+}
+
+/** Detecta foco em campos de texto (input/textarea/contenteditable) e avisa o app. */
+const val EDIT_SCRIPT = """(function(){if(window.__glInit)return;window.__glInit=true;
+document.addEventListener('focusin',function(ev){var t=ev.target;if(!t)return;
+var ed=t.isContentEditable||t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&!/^(button|submit|checkbox|radio|reset|file|image|range|color)$/i.test(t.type||'text'));
+if(ed&&window.GL){GL.onEditable(true);}},true);})()"""
+
+private const val TYPE_JS = """(function(t){var e=document.activeElement;if(!e)return;
+if(e.isContentEditable){document.execCommand('insertText',false,t);return;}
+if(e.tagName!=='INPUT'&&e.tagName!=='TEXTAREA')return;
+var s=e.selectionStart==null?e.value.length:e.selectionStart;
+var n=e.selectionEnd==null?s:e.selectionEnd;
+var v=e.value.slice(0,s)+t+e.value.slice(n);
+var d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(e),'value');
+if(d&&d.set){d.set.call(e,v);}else{e.value=v;}
+try{e.setSelectionRange(s+t.length,s+t.length);}catch(x){}
+e.dispatchEvent(new Event('input',{bubbles:true}));})(__T__)"""
+
+private const val BACKSPACE_JS = """(function(){var e=document.activeElement;if(!e)return;
+if(e.isContentEditable){document.execCommand('delete');return;}
+if(e.tagName!=='INPUT'&&e.tagName!=='TEXTAREA')return;
+var s=e.selectionStart==null?e.value.length:e.selectionStart;
+var n=e.selectionEnd==null?s:e.selectionEnd;
+var a=s;if(s===n){if(s===0)return;a=s-1;}
+var v=e.value.slice(0,a)+e.value.slice(n);
+var d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(e),'value');
+if(d&&d.set){d.set.call(e,v);}else{e.value=v;}
+try{e.setSelectionRange(a,a);}catch(x){}
+e.dispatchEvent(new Event('input',{bubbles:true}));})()"""
+
+private const val ENTER_JS = """(function(){var e=document.activeElement;if(!e)return;
+['keydown','keypress','keyup'].forEach(function(t){e.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));});
+if(e.form&&e.tagName==='INPUT'){if(e.form.requestSubmit){e.form.requestSubmit();}else{e.form.submit();}}})()"""
+
+/** Digita texto no campo focado da página (usado pelo teclado do controle). */
+fun WebView.pageType(text: String) {
+    evaluateJavascript(TYPE_JS.replace("__T__", JSONObject.quote(text)), null)
+}
+
+fun WebView.pageBackspace() {
+    evaluateJavascript(BACKSPACE_JS, null)
+}
+
+fun WebView.pageEnter() {
+    evaluateJavascript(ENTER_JS, null)
 }

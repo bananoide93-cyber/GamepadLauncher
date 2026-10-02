@@ -3,7 +3,6 @@ package com.gamepadlayout.app.console
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
@@ -17,14 +16,15 @@ tailrec fun Context.findActivity(): ComponentActivity? = when (this) {
 }
 
 /**
- * Modo Console: tela cheia imersiva (barras do sistema escondidas, voltam com swipe),
- * orientação horizontal e tela acesa só quando faz sentido (controle conectado / transmitindo).
+ * Modo Console: tela cheia imersiva (barras do sistema escondidas, voltam com swipe)
+ * e tela acesa só quando faz sentido (controle conectado / transmitindo).
+ * A orientação é sempre horizontal (fixada no AndroidManifest).
  * Usa apenas APIs oficiais (WindowInsetsController, requestedOrientation, FLAG_KEEP_SCREEN_ON).
  */
 object ConsoleMode {
     @Volatile var enabled = true
 
-    fun update(activity: Activity, enabled: Boolean, forceLandscape: Boolean, keepAwake: Boolean) {
+    fun update(activity: Activity, enabled: Boolean, keepAwake: Boolean) {
         this.enabled = enabled
         val w = activity.window
         WindowCompat.setDecorFitsSystemWindows(w, false)
@@ -38,9 +38,6 @@ object ConsoleMode {
         if (enabled && keepAwake) w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else w.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val wanted = if (enabled || forceLandscape) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        if (activity.requestedOrientation != wanted) activity.requestedOrientation = wanted
     }
 
     /** Reaplica o modo imersivo (o Android mostra as barras de novo ao voltar o foco da janela). */

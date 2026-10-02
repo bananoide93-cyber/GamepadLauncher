@@ -71,7 +71,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item { Header("Console") }
-            item { ToggleRow("Modo Console (tela cheia + horizontal)", settings.consoleMode) { vm.set(K.CONSOLE_MODE, it) } }
+            item { ToggleRow("Modo Console (tela cheia, esconde as barras)", settings.consoleMode) { vm.set(K.CONSOLE_MODE, it) } }
             item { ToggleRow("Modo Jogo (preparar antes de abrir o jogo)", settings.gameMode) { vm.set(K.GAME_MODE, it) } }
             item { ToggleRow("Mostrar Home na TV automaticamente", settings.autoTv) { vm.set(K.AUTO_TV, it) } }
             item { ToggleRow("Modo economia (menos efeitos e animações)", settings.powerSaver) { vm.set(K.POWER_SAVER, it) } }

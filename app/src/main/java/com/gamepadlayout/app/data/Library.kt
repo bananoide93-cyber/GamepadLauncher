@@ -22,6 +22,7 @@ class LibraryRepository(private val context: Context) {
     private val manualKey = stringSetPreferencesKey("library_manual")
     private val removedKey = stringSetPreferencesKey("library_removed")
     private val recentKey = stringPreferencesKey("library_recent")
+    private val tagsKey = stringPreferencesKey("game_tags")
 
     val manual: Flow<Set<String>> = context.appDataStore.data.map { it[manualKey] ?: emptySet() }
     val removed: Flow<Set<String>> = context.appDataStore.data.map { it[removedKey] ?: emptySet() }
@@ -29,6 +30,18 @@ class LibraryRepository(private val context: Context) {
     /** Jogos jogados por último (mais recente primeiro). */
     val recents: Flow<List<String>> = context.appDataStore.data.map { p ->
         (p[recentKey] ?: "").split(",").filter { it.isNotBlank() }
+    }
+
+    /** Classificações escolhidas pelo usuário (sobrescrevem as sugestões do catálogo). */
+    val tags: Flow<Map<String, GameTag>> = context.appDataStore.data.map { p ->
+        GameCatalog.parse(p[tagsKey] ?: "")
+    }
+
+    suspend fun setTag(pkg: String, tag: GameTag) {
+        context.appDataStore.edit { p ->
+            val cur = GameCatalog.parse(p[tagsKey] ?: "")
+            p[tagsKey] = GameCatalog.serialize(cur + (pkg to tag))
+        }
     }
 
     suspend fun markPlayed(pkg: String) {

@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -79,7 +80,7 @@ fun HomeScreen(
     val visible = Category.entries.filter { it.name !in hiddenCategories }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
-        delay(150)
+        delay(450)
         runCatching { first.requestFocus() }
     }
 
@@ -191,7 +192,7 @@ private fun StatusBar(status: SystemStatus, userName: String, controllers: List<
             Text(status.date, fontSize = 10.sp, color = Color.White.copy(alpha = 0.65f))
         }
         Spacer(Modifier.width(14.dp))
-        ConsoleSurface(onClick = onProfile, modifier = Modifier.height(34.dp), shape = RoundedCornerShape(17.dp), focusScale = 1.06f) {
+        ConsoleSurface(onClick = onProfile, modifier = Modifier.height(34.dp).focusProperties { canFocus = false }, shape = RoundedCornerShape(17.dp), focusScale = 1.06f) {
             Row(Modifier.padding(horizontal = 4.dp).padding(end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier.size(26.dp).clip(CircleShape).background(Brush.linearGradient(listOf(st.accent, st.accentSoft))),

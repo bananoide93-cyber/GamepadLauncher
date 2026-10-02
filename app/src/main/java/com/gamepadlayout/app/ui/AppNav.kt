@@ -56,6 +56,7 @@ import com.gamepadlayout.app.controller.ControllerInfo
 import com.gamepadlayout.app.controller.ControllerScreen
 import com.gamepadlayout.app.data.ControllerViewModel
 import com.gamepadlayout.app.data.ExternalViewModel
+import com.gamepadlayout.app.data.GameTag
 import com.gamepadlayout.app.data.LibraryApp
 import com.gamepadlayout.app.data.LibraryViewModel
 import com.gamepadlayout.app.data.SettingsKeys as K
@@ -107,6 +108,7 @@ fun GamepadLayoutRoot() {
     val settings by settingsVm.settings.collectAsStateWithLifecycle()
     val library by libraryVm.library.collectAsStateWithLifecycle()
     val allApps by libraryVm.allApps.collectAsStateWithLifecycle()
+    val tags by libraryVm.tags.collectAsStateWithLifecycle()
     val controllers by controllerVm.controllers.collectAsStateWithLifecycle()
     val displays by externalVm.displays.collectAsStateWithLifecycle()
     val castStatus by externalVm.cast.collectAsStateWithLifecycle()
@@ -158,12 +160,11 @@ fun GamepadLayoutRoot() {
         BackHandler(enabled = current !is Screen.Boot) { pop() }
 
         // Modo Console + orientação + tela acesa (só quando útil)
-        LaunchedEffect(settings.consoleMode, castStatus.running, settings.castLandscape, controllers.isNotEmpty(), tvActive) {
+        LaunchedEffect(settings.consoleMode, castStatus.running, controllers.isNotEmpty(), tvActive) {
             activity?.let {
                 ConsoleMode.update(
                     it,
                     enabled = settings.consoleMode,
-                    forceLandscape = castStatus.running && settings.castLandscape,
                     keepAwake = controllers.isNotEmpty() || castStatus.running || tvActive
                 )
             }
@@ -176,11 +177,24 @@ fun GamepadLayoutRoot() {
         }
         SideEffect {
             GamepadInput.overlayOpen = overlayOpen
+            GamepadInput.controllerConnected = controllers.isNotEmpty()
             TvNav.onLaunch = { startGame(it) }
         }
         LaunchedEffect(Unit) {
             GamepadInput.events.collect { a ->
                 if (a == PadAction.MENU && stack.last() !is Screen.Boot) quickMenu = !quickMenu
+            }
+        }
+        // Botão Home do Android (quando o app é a tela inicial) volta para a Home do app
+        LaunchedEffect(Unit) {
+            GamepadInput.homeRequests.collect {
+                if (stack.last() !is Screen.Boot) {
+                    quickMenu = false
+                    optionsFor = null
+                    gameTarget = null
+                    stack.clear()
+                    stack.add(Screen.Home)
+                }
             }
         }
         // Tela externa: mostra a Home em modo TV quando conectar (se o usuário não parou manualmente)
@@ -233,6 +247,7 @@ fun GamepadLayoutRoot() {
                         )
                         Screen.Library -> LibraryScreen(
                             games = library,
+                            tags = tags,
                             onBack = { pop() },
                             onLaunch = { launchGame(it) },
                             onAdd = { push(Screen.AppPicker) },
@@ -247,7 +262,7 @@ fun GamepadLayoutRoot() {
                             onBack = { pop() }
                         )
                         Screen.Apps -> AppsScreen(allApps, onBack = { pop() }, onLaunch = { libraryVm.launch(it.packageName) })
-                        Screen.Browser -> BrowserScreen(settings, onExit = { pop() })
+                        Screen.Browser -> BrowserScreen(settings, hasController = controllers.isNotEmpty(), onExit = { pop() })
                         Screen.Settings -> SettingsScreen(
                             settings, settingsVm,
                             onOpenController = { push(Screen.Controller) },
@@ -280,17 +295,21 @@ fun GamepadLayoutRoot() {
                 }
             }
             optionsFor?.let { app ->
-                ConfirmOverlay(
+                QuickMenuOverlay(
                     title = app.label,
-                    message = "Remover da biblioteca? O app continua instalado no celular.",
-                    confirmLabel = "Remover",
-                    onConfirm = { libraryVm.remove(app.packageName); optionsFor = null },
+                    items = listOf(
+                        "Marcar: com suporte a controle" to { libraryVm.setTag(app.packageName, GameTag.NATIVE) },
+                        "Marcar: emulador" to { libraryVm.setTag(app.packageName, GameTag.EMULATOR) },
+                        "Marcar: precisa de mapeador (beta)" to { libraryVm.setTag(app.packageName, GameTag.MAPPER) },
+                        "Remover da biblioteca" to { libraryVm.remove(app.packageName) }
+                    ),
                     onDismiss = { optionsFor = null }
                 )
             }
             gameTarget?.let { app ->
                 GameModeOverlay(
                     app = app,
+                    tag = tags[app.packageName] ?: GameTag.UNKNOWN,
                     controllers = controllers,
                     tvActive = tvActive,
                     casting = castStatus.running,
@@ -367,6 +386,7 @@ private fun TvControlScreen(onStop: () -> Unit) {
 @Composable
 private fun GameModeOverlay(
     app: LibraryApp,
+    tag: GameTag,
     controllers: List<ControllerInfo>,
     tvActive: Boolean,
     casting: Boolean,
@@ -425,6 +445,15 @@ private fun GameModeOverlay(
                 fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f)
             )
             Text(
+                when (tag) {
+                    GameTag.NATIVE -> "Suporte a controle: sim (classificado por você ou pelo catálogo)"
+                    GameTag.EMULATOR -> "Emulador: o controle funciona direto dentro dele"
+                    GameTag.MAPPER -> "Jogo só de toque: o mapeador de botões chega numa próxima versão"
+                    GameTag.UNKNOWN -> "Suporte a controle: não classificado (teste e marque nas opções do jogo)"
+                },
+                fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f)
+            )
+            Text(
                 "Os jogos funcionam normalmente com o controle; o Gamepad Layout não interfere neles.",
                 fontSize = 11.sp, color = Color.White.copy(alpha = 0.55f)
             )
@@ -445,7 +474,11 @@ private fun GameModeOverlay(
 }
 
 @Composable
-private fun QuickMenuOverlay(items: List<Pair<String, () -> Unit>>, onDismiss: () -> Unit) {
+private fun QuickMenuOverlay(
+    items: List<Pair<String, () -> Unit>>,
+    onDismiss: () -> Unit,
+    title: String = "Menu rápido"
+) {
     val st = LocalConsoleStyle.current
     val fr = remember { FocusRequester() }
     BackHandler { onDismiss() }
@@ -470,7 +503,7 @@ private fun QuickMenuOverlay(items: List<Pair<String, () -> Unit>>, onDismiss: (
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Menu rápido", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
             items.forEachIndexed { i, (label, action) ->
                 ConsoleSurface(
                     onClick = { action(); onDismiss() },
