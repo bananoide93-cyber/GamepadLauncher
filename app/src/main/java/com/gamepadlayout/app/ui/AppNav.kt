@@ -105,6 +105,7 @@ sealed interface Screen {
     data class Soon(val title: String) : Screen
     data class Files(val title: String, val path: String) : Screen
     data object SystemInfo : Screen
+    data object Unlock : Screen
     data class Connect(val bluetooth: Boolean) : Screen
 }
 
@@ -285,6 +286,7 @@ fun GamepadLayoutRoot() {
                             settings, settingsVm,
                             onOpenController = { push(Screen.Controller) },
                             onOpenExternal = { push(Screen.External) },
+                            onOpenUnlock = { push(Screen.Unlock) },
                             onBack = { pop() }
                         )
                         Screen.Controller -> ControllerScreen(
@@ -302,6 +304,7 @@ fun GamepadLayoutRoot() {
                         Screen.Arcade -> ArcadeScreen(onBack = { pop() }, onOpen = { push(Screen.ArcadeGame(it)) })
                         is Screen.ArcadeGame -> ArcadeGameScreen(screen.id, onExit = { pop() })
                         is Screen.Files -> com.gamepadlayout.app.ui.modules.FilesScreen(screen.title, screen.path, onBack = { pop() })
+                        Screen.Unlock -> com.gamepadlayout.app.unlock.UnlockScreen(onBack = { pop() })
                         Screen.SystemInfo -> com.gamepadlayout.app.ui.modules.SystemScreen(onBack = { pop() })
                         is Screen.Connect -> com.gamepadlayout.app.ui.modules.ConnectScreen(screen.bluetooth, onBack = { pop() })
                         is Screen.Soon -> ScreenScaffold(screen.title, onBack = { pop() }) {
@@ -348,6 +351,11 @@ fun GamepadLayoutRoot() {
                         "Tela externa / transmitir" to { push(Screen.External) },
                         "Controle" to { push(Screen.Controller) },
                         "Configurações" to { push(Screen.Settings) },
+                        "Pausar abrir ao desbloquear (1 h)" to {
+                            com.gamepadlayout.app.unlock.UnlockPrefs.pauseFor(ctx, 60)
+                            Toast.makeText(ctx, "Pausado por 1 hora", Toast.LENGTH_SHORT).show()
+                        },
+                        "Sair do app (voltar ao Android)" to { ctx.findActivity()?.moveTaskToBack(true); Unit },
                         "Ir para o início" to {
                             stack.clear()
                             stack.add(Screen.Home)

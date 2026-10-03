@@ -38,7 +38,10 @@ data class AppSettings(
     val castQuality: CastQuality = CastQuality.Q720,
     val castFps: Int = 24,
     val castLandscape: Boolean = true,
-    val mapping: String = ""
+    val mapping: String = "",
+    val wallpaper: String = "default",
+    val wallpaperDim: Float = 0.25f,
+    val wallpaperRev: Int = 0
 )
 
 object SettingsKeys {
@@ -61,6 +64,9 @@ object SettingsKeys {
     val CAST_FPS = intPreferencesKey("cast_fps")
     val CAST_LANDSCAPE = booleanPreferencesKey("cast_landscape")
     val MAPPING = stringPreferencesKey("mapping")
+    val WALLPAPER = stringPreferencesKey("wallpaper")
+    val WALLPAPER_DIM = floatPreferencesKey("wallpaper_dim")
+    val WALLPAPER_REV = intPreferencesKey("wallpaper_rev")
 }
 
 private inline fun <reified E : Enum<E>> parse(name: String?, default: E): E =
@@ -89,7 +95,10 @@ class SettingsRepository(private val context: Context) {
             castQuality = parse(p[SettingsKeys.CAST_QUALITY], d.castQuality),
             castFps = p[SettingsKeys.CAST_FPS] ?: d.castFps,
             castLandscape = p[SettingsKeys.CAST_LANDSCAPE] ?: d.castLandscape,
-            mapping = p[SettingsKeys.MAPPING] ?: d.mapping
+            mapping = p[SettingsKeys.MAPPING] ?: d.mapping,
+            wallpaper = p[SettingsKeys.WALLPAPER] ?: d.wallpaper,
+            wallpaperDim = p[SettingsKeys.WALLPAPER_DIM] ?: d.wallpaperDim,
+            wallpaperRev = p[SettingsKeys.WALLPAPER_REV] ?: d.wallpaperRev
         )
     }
 

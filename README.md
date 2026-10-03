@@ -49,3 +49,9 @@ Se o repositório já tiver histórico: `git push -u origin main --force`.
 - Jogos do Arcade com visual retrô: sprites em pixel art, fonte pixelada, efeito de monitor antigo (CRT).
 - Novos módulos: Arquivos, Downloads, Wi-Fi, Bluetooth e Sistema (bateria, RAM, armazenamento, galeria, música).
 - TV com menos atraso: jogos do Arcade aparecem na tela externa por cabo (sem codificar vídeo); transmissão Wi-Fi com predefinição "Latência mínima", quadros adiados em vez de descartados e buffer de rede menor.
+
+## v7
+- Foco com controle: as telas internas (Jogos, Arquivos...) focam o primeiro item sozinhas; mexer no controle também foca (sem tocar no botão).
+- Abrir ao desbloquear (Configurações): exige permissão "exibir sobre outros apps", confirmação dupla, espera, intervalo mínimo, só com controle, só carregando, pausa (1 h/8 h), notificação com "Pausar" e "Desativar", e "Sair do app" no menu rápido (START).
+- Papel de parede: Roxo clássico, Synthwave, Céu estrelado ou foto da galeria, com ajuste de escurecimento.
+- Arcade: novos jogos "Estrada Neon" (corrida pseudo-3D) e "Corredor Veloz" (plataforma de velocidade).

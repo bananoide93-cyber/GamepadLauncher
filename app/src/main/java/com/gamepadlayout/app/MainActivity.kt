@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
         }
         // A orientação horizontal é fixa no AndroidManifest (sensorLandscape).
         ConsoleMode.reapplyBars(this)
+        com.gamepadlayout.app.unlock.UnlockLaunch.sync(this)
         GamepadInput.onTrigger = { activate(it) }
         // Quando o app é a tela inicial, o botão Home do Android volta para a Home do app.
         addOnNewIntentListener { intent ->

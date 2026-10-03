@@ -22,7 +22,10 @@ data class ConsoleStyle(
     val transparency: Float,
     val animations: Boolean,
     val animSpeed: Float,
-    val iconScale: Float
+    val iconScale: Float,
+    val wallpaper: String = "default",
+    val wallpaperDim: Float = 0.25f,
+    val wallpaperRev: Int = 0
 ) {
     /** Cor dos cards: quanto maior a transparência, mais translúcido. */
     val cardColor: Color get() = Color.White.copy(alpha = 0.18f - 0.14f * transparency)
@@ -45,7 +48,10 @@ fun buildStyle(s: AppSettings): ConsoleStyle {
         transparency = s.transparency,
         animations = s.animations,
         animSpeed = s.animSpeed,
-        iconScale = s.iconScale
+        iconScale = s.iconScale,
+        wallpaper = s.wallpaper,
+        wallpaperDim = s.wallpaperDim,
+        wallpaperRev = s.wallpaperRev
     )
 }
 

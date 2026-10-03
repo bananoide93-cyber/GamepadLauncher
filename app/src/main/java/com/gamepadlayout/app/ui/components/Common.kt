@@ -22,6 +22,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,14 +52,28 @@ import com.gamepadlayout.app.ui.theme.LocalConsoleStyle
 fun ScreenScaffold(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val focusManager = LocalFocusManager.current
     // Com controle conectado, foca o primeiro item da tela (evita ter de "tocar num botão" antes).
+    var anyFocus by remember { mutableStateOf(false) }
+    // Tenta focar o primeiro item até conseguir (o conteúdo pode carregar depois de alguns instantes).
     LaunchedEffect(Unit) {
-        delay(450)
-        if (GamepadInput.controllerConnected) focusManager.moveFocus(FocusDirection.Next)
+        delay(300)
+        var tries = 0
+        while (tries < 30 && !anyFocus && GamepadInput.controllerConnected) {
+            focusManager.moveFocus(FocusDirection.Next)
+            delay(200)
+            tries++
+        }
+    }
+    // Se ainda não há nada focado e o jogador mexe no controle, o primeiro botão já foca (sem precisar tocar).
+    LaunchedEffect(Unit) {
+        GamepadInput.rawButtons.collect {
+            if (!anyFocus) focusManager.moveFocus(FocusDirection.Next)
+        }
     }
     ConsoleBackground {
         Column(
             Modifier
                 .fillMaxSize()
+                .onFocusChanged { anyFocus = it.hasFocus }
                 .safeDrawingPadding()
                 .padding(horizontal = 28.dp, vertical = 12.dp)
         ) {

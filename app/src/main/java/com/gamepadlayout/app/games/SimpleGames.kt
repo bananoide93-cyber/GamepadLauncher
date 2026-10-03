@@ -7,11 +7,13 @@ object Games {
         "ship" -> ShipGame()
         "chicken" -> ChickenGame()
         "snake" -> SnakeGame()
+        "racer" -> RacerGame()
+        "runner" -> RunnerGame()
         "breakout" -> BreakoutGame()
         else -> null
     }
 
-    val ids: List<String> = listOf("dungeon", "ship", "chicken", "snake", "breakout")
+    val ids: List<String> = listOf("dungeon", "racer", "runner", "ship", "chicken", "snake", "breakout")
 
     fun all(): List<MiniGame> = ids.mapNotNull { create(it) }
 }

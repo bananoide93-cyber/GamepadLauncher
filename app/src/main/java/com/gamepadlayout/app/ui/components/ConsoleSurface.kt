@@ -41,6 +41,10 @@ import com.gamepadlayout.app.ui.theme.LocalConsoleStyle
 @Composable
 fun ConsoleBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val st = LocalConsoleStyle.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val photo by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, st.wallpaper, st.wallpaperRev) {
+        value = if (st.wallpaper == "custom") com.gamepadlayout.app.ui.theme.Wallpapers.load(ctx) else null
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -48,23 +52,34 @@ fun ConsoleBackground(modifier: Modifier = Modifier, content: @Composable BoxSco
             .drawBehind {
                 val w = size.width
                 val h = size.height
-                val glowCenter = Offset(w * 0.85f, h * 0.05f)
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(st.accent.copy(alpha = 0.28f * st.effects), Color.Transparent),
-                        center = glowCenter,
-                        radius = w * 0.5f
-                    ),
-                    radius = w * 0.5f,
-                    center = glowCenter
-                )
-                val wave = Path().apply {
-                    moveTo(w * 0.35f, h)
-                    cubicTo(w * 0.70f, h * 0.97f, w * 0.85f, h * 0.60f, w, h * 0.22f)
-                    lineTo(w, h)
-                    close()
+                val img = photo
+                if (st.wallpaper == "custom" && img != null) {
+                    com.gamepadlayout.app.ui.theme.Wallpapers.drawCover(this, img)
+                } else when (st.wallpaper) {
+                    "synth" -> com.gamepadlayout.app.ui.theme.Wallpapers.drawSynth(this)
+                    "stars" -> com.gamepadlayout.app.ui.theme.Wallpapers.drawStars(this)
+                    else -> {
+                        val glowCenter = Offset(w * 0.85f, h * 0.05f)
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(st.accent.copy(alpha = 0.28f * st.effects), Color.Transparent),
+                                center = glowCenter,
+                                radius = w * 0.5f
+                            ),
+                            radius = w * 0.5f,
+                            center = glowCenter
+                        )
+                        val wave = Path().apply {
+                            moveTo(w * 0.35f, h)
+                            cubicTo(w * 0.70f, h * 0.97f, w * 0.85f, h * 0.60f, w, h * 0.22f)
+                            lineTo(w, h)
+                            close()
+                        }
+                        drawPath(wave, st.accent.copy(alpha = 0.20f * st.effects))
+                    }
                 }
-                drawPath(wave, st.accent.copy(alpha = 0.20f * st.effects))
+                // Escurece o fundo para o texto continuar legível.
+                if (st.wallpaper != "default") drawRect(Color.Black.copy(alpha = st.wallpaperDim))
             },
         content = content
     )

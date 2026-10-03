@@ -43,6 +43,7 @@ import com.gamepadlayout.app.ui.components.ConsoleSurface
 import com.gamepadlayout.app.ui.components.ScreenScaffold
 import com.gamepadlayout.app.ui.home.Category
 import com.gamepadlayout.app.ui.theme.LocalConsoleStyle
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 internal fun step(v: Float, d: Float, min: Float, max: Float): Float =
@@ -59,9 +60,23 @@ fun SettingsScreen(
     vm: SettingsViewModel,
     onOpenController: () -> Unit,
     onOpenExternal: () -> Unit,
+    onOpenUnlock: () -> Unit,
     onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            if (com.gamepadlayout.app.ui.theme.Wallpapers.import(ctx, uri)) {
+                vm.set(K.WALLPAPER_REV, settings.wallpaperRev + 1)
+                vm.set(K.WALLPAPER, "custom")
+            } else {
+                android.widget.Toast.makeText(ctx, "Não foi possível usar essa imagem", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     val cats = Category.entries.filter { it != Category.SETTINGS && it != Category.GAMES }
 
     ScreenScaffold("Configurações", onBack) {
@@ -77,6 +92,7 @@ fun SettingsScreen(
             item { ToggleRow("Modo economia (menos efeitos e animações)", settings.powerSaver) { vm.set(K.POWER_SAVER, it) } }
             item { ActionRow("Controle e mapeamento de botões", onOpenController) }
             item { ActionRow("Tela externa e transmissão", onOpenExternal) }
+            item { ActionRow("Abrir ao desbloquear o celular (risco)", onOpenUnlock) }
             item {
                 ActionRow("Definir Gamepad Layout como tela inicial (sistema)") {
                     try {
@@ -103,6 +119,22 @@ fun SettingsScreen(
                 SettingRow("Transparência dos cards", pct(settings.transparency),
                     { vm.set(K.TRANSPARENCY, step(settings.transparency, -0.1f, 0f, 1f)) },
                     { vm.set(K.TRANSPARENCY, step(settings.transparency, 0.1f, 0f, 1f)) })
+            }
+            item {
+                val ws = com.gamepadlayout.app.ui.theme.Wallpapers.presets
+                val cur = ws.indexOfFirst { it.first == settings.wallpaper }.coerceAtLeast(0)
+                fun pick(d: Int) {
+                    val n = ws[(cur + d + ws.size) % ws.size].first
+                    if (n == "custom" && !com.gamepadlayout.app.ui.theme.Wallpapers.file(ctx).exists()) picker.launch("image/*")
+                    else vm.set(K.WALLPAPER, n)
+                }
+                SettingRow("Papel de parede", ws[cur].second, { pick(-1) }, { pick(1) })
+            }
+            item { ActionRow("Escolher foto da galeria para o fundo") { picker.launch("image/*") } }
+            item {
+                SettingRow("Escurecer o fundo", pct(settings.wallpaperDim),
+                    { vm.set(K.WALLPAPER_DIM, step(settings.wallpaperDim, -0.05f, 0f, 0.8f)) },
+                    { vm.set(K.WALLPAPER_DIM, step(settings.wallpaperDim, 0.05f, 0f, 0.8f)) })
             }
             item { ToggleRow("Animações", settings.animations) { vm.set(K.ANIMATIONS, it) } }
 
