@@ -93,7 +93,7 @@ fun GameTile(
         ConsoleSurface(
             onClick = onClick,
             modifier = Modifier.size(tileSize),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(6.dp),
             onLongClick = onOptions,
             onKey = { ev ->
                 if (onOptions != null && ev.type == KeyEventType.KeyUp && ev.key == Key.Menu) {
@@ -117,7 +117,7 @@ fun GameTile(
 @Composable
 fun AddTile(tileSize: Dp, label: String = "Adicionar jogo", onClick: () -> Unit) {
     Column(Modifier.width(tileSize + 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        ConsoleSurface(onClick = onClick, modifier = Modifier.size(tileSize), shape = RoundedCornerShape(16.dp)) {
+        ConsoleSurface(onClick = onClick, modifier = Modifier.size(tileSize), shape = RoundedCornerShape(6.dp)) {
             Icon(Icons.Rounded.Add, null, Modifier.align(Alignment.Center).size(34.dp))
         }
         Spacer(Modifier.height(6.dp))

@@ -79,7 +79,7 @@ fun ConsoleBackground(modifier: Modifier = Modifier, content: @Composable BoxSco
 fun ConsoleSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(18.dp),
+    shape: Shape = RoundedCornerShape(8.dp),
     focusScale: Float = 1.08f,
     focusRequester: FocusRequester? = null,
     onLongClick: (() -> Unit)? = null,
@@ -116,7 +116,7 @@ fun ConsoleSurface(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .drawBehind {
                 if (glow > 0.01f) {
-                    val cr = 22.dp.toPx()
+                    val cr = 10.dp.toPx()
                     for (i in 3 downTo 1) {
                         val g = i * 5.dp.toPx()
                         drawRoundRect(
@@ -151,7 +151,7 @@ fun ConsoleSurface(
 fun ConsoleCard(
     focused: Boolean,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(18.dp),
+    shape: Shape = RoundedCornerShape(8.dp),
     focusScale: Float = 1.08f,
     background: Color? = null,
     content: @Composable BoxScope.(Boolean) -> Unit
@@ -174,7 +174,7 @@ fun ConsoleCard(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .drawBehind {
                 if (glow > 0.01f) {
-                    val cr = 22.dp.toPx()
+                    val cr = 10.dp.toPx()
                     for (i in 3 downTo 1) {
                         val g = i * 5.dp.toPx()
                         drawRoundRect(

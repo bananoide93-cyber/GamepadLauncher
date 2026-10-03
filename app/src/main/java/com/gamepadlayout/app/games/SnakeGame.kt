@@ -8,7 +8,7 @@ class SnakeGame : MiniGame(
     "D-pad / analógico: virar · toque: arraste"
 ) {
     private val cols = 24
-    private val rows = 13
+    private val rows = 12
     private val body = ArrayDeque<IntArray>()
     private var dirX = 1
     private var dirY = 0
@@ -17,6 +17,7 @@ class SnakeGame : MiniGame(
     private var appleX = 0
     private var appleY = 0
     private var acc = 0f
+    private var anim = 0f
     private val rnd = Random.Default
 
     init { reset() }
@@ -48,6 +49,7 @@ class SnakeGame : MiniGame(
     }
 
     override fun update(dt: Float, input: GameInput) {
+        anim += dt
         if (over) return
         if (input.stepX != 0 && dirX == 0) { nextX = input.stepX; nextY = 0 }
         else if (input.stepY != 0 && dirY == 0) { nextX = 0; nextY = input.stepY }
@@ -84,26 +86,58 @@ class SnakeGame : MiniGame(
         }
     }
 
+    private val apple = Sprite(
+        listOf(
+            "....B...",
+            "...BGG..",
+            ".RRRBRR.",
+            "RWRRRRRR",
+            "RWRRRRRR",
+            "RRRRRRRR",
+            ".RRRRRR.",
+            "..RR.RR."
+        ),
+        mapOf('R' to 0xFFE0455BL, 'W' to 0xFFFFB8C0L, 'G' to P.GREEN, 'B' to 0xFF6B3F2AL)
+    )
+
     override fun draw(g: Gfx) {
         val v = View(g, 800f, 450f)
-        v.clear(C.BG)
+        v.clear(P.INK)
         val cs = 800f / cols
-        val oy = (450f - rows * cs) / 2f + 10f
-        v.rect(0f, oy, cols * cs, rows * cs, 0xFF140F44L)
+        val oy = 40f
+        // moldura e campo quadriculado
+        v.rect(0f, oy - 4f, 800f, rows * cs + 8f, P.SLATE)
         for (x in 0 until cols) for (y in 0 until rows) {
-            if ((x + y) % 2 == 0) v.rect(x * cs, oy + y * cs, cs, cs, 0x10FFFFFFL)
+            v.rect(x * cs, oy + y * cs, cs, cs, if ((x + y) % 2 == 0) 0xFF1D2B3FL else 0xFF22334BL)
         }
-        v.circle(appleX * cs + cs / 2, oy + appleY * cs + cs / 2, cs * 0.38f, C.RED)
-        v.rect(appleX * cs + cs / 2 - 1.5f, oy + appleY * cs + 2f, 3f, 6f, C.GREEN)
-        for (i in body.indices) {
+        // maçã (pulsa de leve)
+        val bob = if ((anim * 4f).toInt() % 2 == 0) 0f else 1.5f
+        apple.draw(v, appleX * cs + 1f, oy + appleY * cs + 1f + bob, (cs - 2f) / 8f)
+
+        for (i in body.indices.reversed()) {
             val seg = body[i]
-            val color = if (i == 0) C.LILAC else C.PURPLE
-            v.rect(seg[0] * cs + 1.5f, oy + seg[1] * cs + 1.5f, cs - 3f, cs - 3f, color)
+            val base = if (i % 2 == 0) P.GREEN else 0xFF2E9B57L
+            v.bevel(seg[0] * cs + 1f, oy + seg[1] * cs + 1f, cs - 2f, cs - 2f, if (i == 0) P.LIME else base, 3f)
+            if (i != 0) v.rect(seg[0] * cs + cs / 2f - 2f, oy + seg[1] * cs + cs / 2f - 2f, 4f, 4f, C.shade(base, 0.6f))
         }
+        // rosto da cabeça
         val h = body.first()
-        v.circle(h[0] * cs + cs * 0.35f, oy + h[1] * cs + cs * 0.38f, 2.5f, C.BLACK)
-        v.circle(h[0] * cs + cs * 0.65f, oy + h[1] * cs + cs * 0.38f, 2.5f, C.BLACK)
-        v.text("Pontos: $score", 12f, 22f, 20f, C.WHITE, false)
-        v.text("Recorde: $best", 700f, 22f, 16f, C.LILAC, true)
+        val hx = h[0] * cs
+        val hy = oy + h[1] * cs
+        val e1x: Float; val e1y: Float; val e2x: Float; val e2y: Float
+        when {
+            dirX > 0 -> { e1x = 0.62f; e1y = 0.22f; e2x = 0.62f; e2y = 0.62f }
+            dirX < 0 -> { e1x = 0.22f; e1y = 0.22f; e2x = 0.22f; e2y = 0.62f }
+            dirY < 0 -> { e1x = 0.2f; e1y = 0.2f; e2x = 0.62f; e2y = 0.2f }
+            else -> { e1x = 0.2f; e1y = 0.55f; e2x = 0.62f; e2y = 0.55f }
+        }
+        for ((ex, ey) in listOf(e1x to e1y, e2x to e2y)) {
+            v.rect(hx + ex * cs, hy + ey * cs, cs * 0.2f, cs * 0.2f, P.WHITE)
+            v.rect(hx + ex * cs + cs * (0.08f + dirX * 0.05f), hy + ey * cs + cs * (0.08f + dirY * 0.05f), cs * 0.09f, cs * 0.09f, P.INK)
+        }
+        if ((anim * 3f).toInt() % 2 == 0 && !over) {
+            v.rect(hx + cs * (0.42f + dirX * 0.5f), hy + cs * (0.42f + dirY * 0.5f), cs * 0.16f, cs * 0.16f, P.RED)
+        }
+        v.hudBar("PONTOS $score", "RECORDE $best")
     }
 }

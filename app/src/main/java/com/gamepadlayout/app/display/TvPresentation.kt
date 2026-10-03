@@ -78,7 +78,10 @@ class TvPresentation(
             setViewTreeLifecycleOwner(activity)
             setViewTreeViewModelStoreOwner(activity)
             setViewTreeSavedStateRegistryOwner(activity)
-            setContent { TvHomeContent() }
+            setContent {
+                if (com.gamepadlayout.app.games.ArcadeMirror.game != null) com.gamepadlayout.app.games.ArcadeMirrorCanvas()
+                else TvHomeContent()
+            }
         }
         window?.decorView?.let {
             it.setViewTreeLifecycleOwner(activity)

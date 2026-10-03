@@ -10,6 +10,10 @@ class BreakoutGame : MiniGame(
     "breakout", "Tijolinhos", "Rebata a bolinha e destrua todos os tijolos.",
     "Analógico / D-pad: mover · A ou toque: lançar a bola"
 ) {
+    private companion object {
+        val BRICK = longArrayOf(P.RED, P.ORANGE, P.YELLOW, P.GREEN, P.SKY)
+    }
+
     private val cols = 10
     private val rows = 5
     private val bw = 70f
@@ -20,6 +24,11 @@ class BreakoutGame : MiniGame(
     private val py = 415f
     private val br = 7f
 
+    private class Bit(var x: Float, var y: Float, var vx: Float, var vy: Float, var life: Float, val color: Long)
+
+    private val bits = ArrayList<Bit>()
+    private val trail = FloatArray(12)
+    private var anim = 0f
     private val alive = BooleanArray(cols * rows)
     private var px = 400f
     private var bx = 400f
@@ -37,6 +46,7 @@ class BreakoutGame : MiniGame(
     override fun reset() {
         score = 0
         over = false
+        bits.clear()
         lives = 3
         level = 1
         speed = 330f
@@ -60,6 +70,9 @@ class BreakoutGame : MiniGame(
     private fun brickY(r: Int): Float = 50f + r * (bh + gap)
 
     override fun update(dt: Float, input: GameInput) {
+        anim += dt
+        for (b in bits) { b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 600f * dt; b.life -= dt }
+        bits.removeAll { it.life <= 0f }
         if (over) return
         px = (px + input.dx * 560f * dt).coerceIn(pw / 2f, 800f - pw / 2f)
         if (stuck) {
@@ -95,6 +108,8 @@ class BreakoutGame : MiniGame(
             vy = -sqrt(max(speed * speed - vx * vx, 10000f))
             by = py - br - 0.5f
         }
+        for (i in trail.size - 2 downTo 2 step 2) { trail[i] = trail[i - 2]; trail[i + 1] = trail[i - 1] }
+        trail[0] = bx; trail[1] = by
         hitBricks()
         if (by > 470f) {
             lives--
@@ -112,6 +127,8 @@ class BreakoutGame : MiniGame(
                 if (bx + br > x && bx - br < x + bw && by + br > y && by - br < y + bh) {
                     alive[idx] = false
                     left--
+                    val bc = BRICK[r % BRICK.size]
+                    for (k in 0 until 7) bits.add(Bit(x + bw / 2f, y + bh / 2f, (k - 3) * 45f + vx * 0.2f, -120f - k * 14f, 0.5f, bc))
                     score += 10 * (rows - r)
                     val oL = bx + br - x
                     val oR = x + bw - (bx - br)
@@ -132,15 +149,30 @@ class BreakoutGame : MiniGame(
 
     override fun draw(g: Gfx) {
         val v = View(g, 800f, 450f)
-        v.clear(C.BG)
-        val colors = longArrayOf(0xFFE53935L, 0xFFFF9800L, 0xFFFFD54FL, 0xFF66BB6AL, 0xFF42A5F5L)
+        v.clear(P.INK)
+        // fundo com grade discreta
+        var gx = 0f
+        while (gx <= 800f) { v.rect(gx, 30f, 1f, 420f, 0xFF20243CL); gx += 40f }
+        var gy = 30f
+        while (gy <= 450f) { v.rect(0f, gy, 800f, 1f, 0xFF20243CL); gy += 40f }
         for (r in 0 until rows) for (c in 0 until cols) {
-            if (alive[r * cols + c]) v.rect(brickX(c), brickY(r), bw, bh, colors[r % colors.size])
+            if (alive[r * cols + c]) v.bevel(brickX(c), brickY(r), bw, bh, BRICK[r % BRICK.size], 3f)
         }
-        v.rect(px - pw / 2f, py, pw, ph, C.LILAC)
-        v.circle(bx, by, br, C.WHITE)
-        v.text("Pontos: $score", 12f, 24f, 20f, C.WHITE, false)
-        v.text("Vidas: $lives   Nível: $level", 790f - 150f, 24f, 16f, C.LILAC, false)
-        if (stuck && !over) v.text("A ou toque para lançar", 400f, 300f, 20f, C.alpha(C.WHITE, 0.7f), true)
+        for (b in bits) v.rect(b.x - 2f, b.y - 2f, 4f, 4f, C.alpha(b.color, (b.life * 2f).coerceIn(0f, 1f)))
+        // raquete
+        v.bevel(px - pw / 2f, py, pw, ph, P.LILAC, 3f)
+        v.rect(px - pw / 2f - 4f, py - 2f, 8f, ph + 4f, P.VIOLET)
+        v.rect(px + pw / 2f - 4f, py - 2f, 8f, ph + 4f, P.VIOLET)
+        // bola com rastro
+        if (!stuck) for (i in 2 until trail.size step 2) {
+            val a = 0.35f - i * 0.025f
+            if (trail[i] > 0f) v.rect(trail[i] - 4f, trail[i + 1] - 4f, 8f, 8f, C.alpha(P.CYAN, a.coerceAtLeast(0.05f)))
+        }
+        v.rect(bx - br, by - br, br * 2f, br * 2f, P.WHITE)
+        v.rect(bx - br, by - br, br, br, P.CYAN)
+        v.hudBar("PONTOS $score", "VIDAS $lives  NIVEL $level")
+        if (stuck && !over && (anim * 2f).toInt() % 2 == 0) {
+            v.pixText("A OU TOQUE PARA LANCAR", 400f, 300f, 3f, P.YELLOW, center = true)
+        }
     }
 }

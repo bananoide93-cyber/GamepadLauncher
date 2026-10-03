@@ -7,6 +7,7 @@ import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.VideogameAsset
 import androidx.compose.material.icons.rounded.Settings
@@ -25,5 +26,6 @@ enum class Category(val label: String, val icon: ImageVector) {
     EXTERNAL("Tela externa", Icons.Rounded.Cast),
     CONTROLLER("Controle", Icons.Rounded.Gamepad),
     APPS("Aplicativos", Icons.Rounded.Apps),
+    SYSTEM("Sistema", Icons.Rounded.Info),
     SETTINGS("Configurações", Icons.Rounded.Settings)
 }

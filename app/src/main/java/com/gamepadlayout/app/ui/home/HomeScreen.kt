@@ -85,7 +85,7 @@ fun HomeScreen(
     }
 
     val cardW = (112 * st.iconScale).dp
-    val cardH = (104 * st.iconScale).dp
+    val cardH = (112 * st.iconScale).dp
     val tile = (76 * st.iconScale).dp
 
     ConsoleBackground {
@@ -108,22 +108,9 @@ fun HomeScreen(
                             modifier = Modifier.size(cardW, cardH),
                             focusScale = 1.12f,
                             focusRequester = if (index == 0) first else null,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = RoundedCornerShape(6.dp)
                         ) { focused ->
-                            Column(
-                                Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(c.icon, null, Modifier.size((38 * st.iconScale).dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    c.label,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal
-                                )
-                            }
+                            CategoryTileBody(c, focused, games.size)
                         }
                     }
                 }
@@ -140,7 +127,8 @@ fun HomeScreen(
                 }
             }
             Row(
-                Modifier.align(Alignment.BottomStart).padding(start = 30.dp, bottom = 10.dp),
+                Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.28f))
+                    .padding(start = 30.dp, top = 6.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 Hint("A", "Confirmar")
@@ -201,6 +189,66 @@ internal fun StatusBar(status: SystemStatus, userName: String, controllers: List
                 Spacer(Modifier.width(8.dp))
                 Text(userName, fontSize = 13.sp, maxLines = 1)
             }
+        }
+    }
+}
+
+internal fun categoryColor(c: Category): Color = when (c) {
+    Category.GAMES -> Color(0xFF7B4DFF)
+    Category.ARCADE -> Color(0xFFFF5C8A)
+    Category.FILES -> Color(0xFFFFB84D)
+    Category.DOWNLOADS -> Color(0xFF3DDC97)
+    Category.BROWSER -> Color(0xFF4DA3FF)
+    Category.WIFI -> Color(0xFF35D0E8)
+    Category.BLUETOOTH -> Color(0xFF5B7CFF)
+    Category.EXTERNAL -> Color(0xFFB36BFF)
+    Category.CONTROLLER -> Color(0xFFFF7A4D)
+    Category.APPS -> Color(0xFF9BE15D)
+    Category.SYSTEM -> Color(0xFF8FA3C7)
+    Category.SETTINGS -> Color(0xFFC9B8FF)
+}
+
+private fun subtitleOf(c: Category, gamesCount: Int): String = when (c) {
+    Category.GAMES -> "$gamesCount na biblioteca"
+    Category.ARCADE -> "5 jogos nativos"
+    Category.FILES -> "Pastas e arquivos"
+    Category.DOWNLOADS -> "Baixados"
+    Category.BROWSER -> "Web com controle"
+    Category.WIFI -> "Redes"
+    Category.BLUETOOTH -> "Pareamento"
+    Category.EXTERNAL -> "TV e transmissão"
+    Category.CONTROLLER -> "Botões e teclas"
+    Category.APPS -> "Todos os apps"
+    Category.SYSTEM -> "Aparelho e bateria"
+    Category.SETTINGS -> "Ajustes"
+}
+
+/** Conteúdo do bloco quadrado de categoria: faixa colorida, ícone grande, nome e detalhe. */
+@Composable
+internal fun CategoryTileBody(c: Category, focused: Boolean, gamesCount: Int) {
+    val st = LocalConsoleStyle.current
+    val tint = categoryColor(c)
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(5.dp).background(tint).align(Alignment.TopCenter))
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(top = 9.dp, end = 8.dp).size(7.dp)
+                .background(if (focused) Color.White else tint.copy(alpha = 0.55f))
+        )
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(top = 8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(c.icon, null, Modifier.size((42 * st.iconScale).dp), tint = if (focused) Color.White else tint)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                c.label, fontSize = 13.sp, maxLines = 1,
+                fontWeight = if (focused) FontWeight.Bold else FontWeight.SemiBold
+            )
+            Text(
+                subtitleOf(c, gamesCount), fontSize = 9.sp, maxLines = 1,
+                color = Color.White.copy(alpha = 0.6f)
+            )
         }
     }
 }

@@ -141,33 +141,97 @@ class ShipGame : MiniGame(
         if (lives <= 0) finish()
     }
 
+    private val pal = mapOf('V' to P.VIOLET, 'L' to P.LILAC, 'C' to P.CYAN, 'W' to P.WHITE, 'K' to P.INK)
+    private val shipSpr = Sprite(
+        listOf(
+            "....VV.........",
+            "....VLV........",
+            "VV..VLLVV......",
+            "VLVVLLLLLVVVV..",
+            "VLLLLLLLLCCCLV.",
+            "VLVVLLLLLVVVV..",
+            "VV..VLLVV......",
+            "....VLV........",
+            "....VV........."
+        ), pal
+    )
+    private val alienA = Sprite(
+        listOf(
+            "..SSSSSS..",
+            ".STTTTTTS.",
+            "STTWTTWTTS",
+            "STTKTTKTTS",
+            "STTTTTTTTS",
+            ".S.STTS.S.",
+            "S..S..S..S"
+        ), pal
+    )
+    private val alienB = Sprite(
+        listOf(
+            "..SSSSSS..",
+            ".STTTTTTS.",
+            "STTWTTWTTS",
+            "STTKTTKTTS",
+            "STTTTTTTTS",
+            "..S.TT.S..",
+            ".S..S..S.."
+        ), pal
+    )
+    private val bigSpr = Sprite(
+        listOf(
+            "....SSSSSS....",
+            "..SSTTTTTTSS..",
+            ".STTHHTTTTTTS.",
+            "STTTTTTTTTTTTS",
+            "STWWTTTTTTWWTS",
+            "STWKTTTTTTWKTS",
+            "STTTTTTTTTTTTS",
+            ".SSTTSSSSTTSS.",
+            "..S.S....S.S..",
+            "..S........S.."
+        ), pal
+    )
+
     override fun draw(g: Gfx) {
         val v = View(g, 800f, 450f)
-        v.clear(C.BG)
-        for (s in stars) v.rect(s.x, s.y, 2f, 2f, C.alpha(C.WHITE, 0.25f + s.speed / 200f))
+        v.clear(0xFF0E1230L)
+        val bands = longArrayOf(0xFF0E1230L, 0xFF121838L, 0xFF161E40L, 0xFF1A2448L, 0xFF1E2A50L)
+        for (i in bands.indices) v.rect(0f, i * 90f, 800f, 91f, bands[i])
+        // lua distante que rola devagar
+        val mx = 700f - (time * 6f) % 1000f
+        v.pixDisc(if (mx < -80f) mx + 1000f else mx, 110f, 52f, 0xFF3A3F7AL)
+        v.pixDisc(if (mx < -80f) mx + 1000f - 12f else mx - 12f, 100f, 36f, 0xFF4A5090L)
+        for (s in stars) {
+            val big = s.speed > 90f
+            v.rect(s.x, s.y, if (big) 3f else 2f, if (big) 3f else 2f, C.alpha(P.WHITE, 0.25f + s.speed / 200f))
+        }
+        val frame = (time * 6f).toInt() % 2 == 0
         for (e in enemies) {
-            if (e.kind == 1) {
-                v.circle(e.x, e.y, 18f, C.ORANGE)
-                v.circle(e.x - 4f, e.y, 8f, 0xFF5D2A00L)
-            } else {
-                v.circle(e.x, e.y, 14f, C.RED)
-                v.rect(e.x - 18f, e.y - 3f, 10f, 6f, C.shade(C.RED, 0.7f))
-            }
+            if (e.kind == 1) bigSpr.draw(v, e.x - 21f, e.y - 15f, 3f, tint = P.ORANGE)
+            else (if (frame) alienA else alienB).draw(v, e.x - 16f, e.y - 11f, 3.2f, tint = P.RED)
         }
         for (s in shots) {
-            if (s.mine) v.rect(s.x - 8f, s.y - 2f, 16f, 4f, C.YELLOW)
-            else v.circle(s.x, s.y, 5f, C.RED)
+            if (s.mine) {
+                v.rect(s.x - 9f, s.y - 3f, 18f, 6f, P.ORANGE)
+                v.rect(s.x - 7f, s.y - 2f, 16f, 4f, P.YELLOW)
+                v.rect(s.x - 1f, s.y - 1f, 8f, 2f, P.WHITE)
+            } else {
+                v.rect(s.x - 3f, s.y - 6f, 6f, 12f, P.RED)
+                v.rect(s.x - 6f, s.y - 3f, 12f, 6f, P.RED)
+                v.rect(s.x - 2f, s.y - 2f, 4f, 4f, P.YELLOW)
+            }
         }
         val blink = invuln > 0f && ((time * 12f).toInt() % 2 == 0)
         if (!blink && !over) {
-            v.rect(px - 18f, py - 10f, 36f, 20f, C.LILAC)
-            v.rect(px + 10f, py - 5f, 16f, 10f, C.PURPLE)
-            v.rect(px - 18f, py - 18f, 16f, 8f, C.PURPLE)
-            v.rect(px - 18f, py + 10f, 16f, 8f, C.PURPLE)
-            v.circle(px - 22f, py, 5f + (time * 30f).toInt() % 3, C.ORANGE)
+            val f = 6f + (time * 30f).toInt() % 3 * 3f
+            v.rect(px - 22f - f, py - 3f, f, 6f, P.ORANGE)
+            v.rect(px - 22f - f / 2f, py - 1.5f, f / 2f, 3f, P.YELLOW)
+            shipSpr.draw(v, px - 20f, py - 12f, 2.7f)
         }
-        for (sp in sparks) v.circle(sp.x, sp.y, 2.5f, C.alpha(sp.color, (sp.life * 2f).coerceIn(0f, 1f)))
-        v.text("Pontos: $score", 12f, 24f, 20f, C.WHITE, false)
-        v.text("Vidas: $lives   Nível: $level", 790f - 150f, 24f, 16f, C.LILAC, false)
+        for (sp in sparks) {
+            val a = (sp.life * 2f).coerceIn(0f, 1f)
+            v.rect(sp.x - 2f, sp.y - 2f, 4f, 4f, C.alpha(sp.color, a))
+        }
+        v.hudBar("PONTOS $score", "VIDAS $lives  NIVEL $level")
     }
 }

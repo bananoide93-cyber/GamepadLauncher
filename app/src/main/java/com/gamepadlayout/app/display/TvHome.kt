@@ -85,7 +85,7 @@ fun TvHomeContent() {
                         }
                     }
                     val cardW = (112 * st.iconScale).dp
-                    val cardH = (104 * st.iconScale).dp
+                    val cardH = (112 * st.iconScale).dp
                     val tile = (76 * st.iconScale).dp
 
                     Box(Modifier.fillMaxSize()) {
@@ -106,22 +106,9 @@ fun TvHomeContent() {
                                         focused = row == 0 && col == i,
                                         modifier = Modifier.size(cardW, cardH),
                                         focusScale = 1.12f,
-                                        shape = RoundedCornerShape(20.dp)
+                                        shape = RoundedCornerShape(6.dp)
                                     ) { focused ->
-                                        Column(
-                                            Modifier.fillMaxSize(),
-                                            verticalArrangement = Arrangement.Center,
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Icon(c.icon, null, Modifier.size((38 * st.iconScale).dp))
-                                            Spacer(Modifier.height(8.dp))
-                                            Text(
-                                                c.label,
-                                                fontSize = 13.sp,
-                                                maxLines = 1,
-                                                fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal
-                                            )
-                                        }
+                                        com.gamepadlayout.app.ui.home.CategoryTileBody(c, focused, games.size)
                                     }
                                 }
                             }

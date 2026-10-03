@@ -103,6 +103,9 @@ sealed interface Screen {
     data object Arcade : Screen
     data class ArcadeGame(val id: String) : Screen
     data class Soon(val title: String) : Screen
+    data class Files(val title: String, val path: String) : Screen
+    data object SystemInfo : Screen
+    data class Connect(val bluetooth: Boolean) : Screen
 }
 
 @Composable
@@ -227,10 +230,11 @@ fun GamepadLayoutRoot() {
                 Category.EXTERNAL -> push(Screen.External)
                 Category.CONTROLLER -> push(Screen.Controller)
                 Category.ARCADE -> push(Screen.Arcade)
-                Category.FILES -> push(Screen.Soon("Arquivos"))
-                Category.DOWNLOADS -> SystemIntents.downloads(ctx)
-                Category.WIFI -> SystemIntents.wifi(ctx)
-                Category.BLUETOOTH -> SystemIntents.bluetooth(ctx)
+                Category.FILES -> push(Screen.Files("Arquivos", android.os.Environment.getExternalStorageDirectory().path))
+                Category.SYSTEM -> push(Screen.SystemInfo)
+                Category.DOWNLOADS -> push(Screen.Files("Downloads", android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS).path))
+                Category.WIFI -> push(Screen.Connect(false))
+                Category.BLUETOOTH -> push(Screen.Connect(true))
             }
         }
 
@@ -297,6 +301,9 @@ fun GamepadLayoutRoot() {
                         Screen.TvControl -> TvControlScreen(onStop = { stopTv() })
                         Screen.Arcade -> ArcadeScreen(onBack = { pop() }, onOpen = { push(Screen.ArcadeGame(it)) })
                         is Screen.ArcadeGame -> ArcadeGameScreen(screen.id, onExit = { pop() })
+                        is Screen.Files -> com.gamepadlayout.app.ui.modules.FilesScreen(screen.title, screen.path, onBack = { pop() })
+                        Screen.SystemInfo -> com.gamepadlayout.app.ui.modules.SystemScreen(onBack = { pop() })
+                        is Screen.Connect -> com.gamepadlayout.app.ui.modules.ConnectScreen(screen.bluetooth, onBack = { pop() })
                         is Screen.Soon -> ScreenScaffold(screen.title, onBack = { pop() }) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(

@@ -154,12 +154,12 @@ class ScreenCastService : Service() {
         var reusable: Bitmap? = null
         val baos = ByteArrayOutputStream(64 * 1024)
 
-        r.setOnImageAvailableListener({ reader ->
-            val img = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
+        var queued = false
+        fun process() {
+            val img = r.acquireLatestImage() ?: return
             try {
                 val now = SystemClock.elapsedRealtime()
-                // Sem espectadores ou antes do intervalo: não gasta CPU codificando.
-                if (httpServer.clientCount == 0 || now - last < minInterval) return@setOnImageAvailableListener
+                if (httpServer.clientCount == 0) return
                 last = now
                 val plane = img.planes[0]
                 val bw = w + (plane.rowStride - plane.pixelStride * w) / plane.pixelStride
@@ -179,6 +179,18 @@ class ScreenCastService : Service() {
                 }
             } finally {
                 img.close()
+            }
+        }
+
+        // Quadro que chega antes do intervalo é ADIADO (não descartado): evita a imagem "congelada"
+        // em cenas paradas, que dava a sensação de atraso.
+        r.setOnImageAvailableListener({
+            val now = SystemClock.elapsedRealtime()
+            val wait = minInterval - (now - last)
+            if (wait <= 0L) process()
+            else if (!queued) {
+                queued = true
+                handler.postDelayed({ queued = false; process() }, wait)
             }
         }, handler)
 

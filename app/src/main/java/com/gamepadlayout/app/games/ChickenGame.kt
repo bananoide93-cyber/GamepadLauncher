@@ -201,9 +201,44 @@ class ChickenGame : MiniGame(
         vx += (x - vx) * min(1f, dt * 22f)
     }
 
+    private val henSpr = Sprite(
+        listOf(
+            "....RRR....",
+            "...RRRRR...",
+            "...WWWWW...",
+            "..WWKWKWW..",
+            "..WWWOWWW..",
+            "..WWWOWWW..",
+            ".WWWWWWWWW.",
+            "WWGWWWWWGWW",
+            "WWGWWWWWGWW",
+            ".WWWWWWWWW.",
+            "..WWWWWWW..",
+            "...O...O..."
+        ),
+        mapOf('W' to P.WHITE, 'G' to 0xFFC4CFDAL, 'K' to P.INK, 'O' to P.ORANGE, 'R' to 0xFFE0455BL)
+    )
+    private val treeSpr = Sprite(
+        listOf(
+            "....DDDD....",
+            "..DDGGGGDD..",
+            ".DGGLLGGGGD.",
+            ".DGLLGGGGGD.",
+            "DGGGGGGGGGGD",
+            "DGGGGGGLGGGD",
+            ".DGGGGGGGGD.",
+            "..DDGGGGDD..",
+            "....DDDD....",
+            ".....BB.....",
+            ".....BB.....",
+            ".....BB....."
+        ),
+        mapOf('D' to 0xFF1E6040L, 'G' to 0xFF2E8B4FL, 'L' to 0xFF4CB86AL, 'B' to 0xFF6B3F2AL)
+    )
+
     override fun draw(g: Gfx) {
         val v = View(g, 800f, 450f)
-        v.clear(0xFF2E7D32L)
+        v.clear(0xFF2E8B4FL)
         val camRow = vr - 2f
         val first = camRow.toInt() - 1
         for (r in max(0, first)..min(rows.size - 1, first + 11)) {
@@ -211,52 +246,79 @@ class ChickenGame : MiniGame(
             val row = rows[r]
             when (row.kind) {
                 grass -> {
-                    v.rect(0f, y, 800f, cell, if (r % 2 == 0) 0xFF4CAF50L else 0xFF43A047L)
+                    v.rect(0f, y, 800f, cell, if (r % 2 == 0) 0xFF4CB86AL else 0xFF43AA62L)
+                    for (c in 0 until ncols) {
+                        val hsh = (r * 31 + c * 17) % 7
+                        if (hsh == 0) {
+                            v.rect(c * cell + 10f, y + 30f, 4f, 4f, P.YELLOW)
+                            v.rect(c * cell + 14f, y + 34f, 4f, 4f, P.WHITE)
+                        } else if (hsh == 3) {
+                            v.rect(c * cell + 30f, y + 14f, 4f, 8f, 0xFF2E8B4FL)
+                            v.rect(c * cell + 34f, y + 18f, 4f, 4f, 0xFF2E8B4FL)
+                        }
+                    }
                     for (c in 0 until ncols) if (row.trees[c]) {
-                        v.rect(c * cell + 21f, y + 26f, 8f, 18f, 0xFF5D4037L)
-                        v.circle(c * cell + 25f, y + 20f, 18f, 0xFF1B5E20L)
-                        v.circle(c * cell + 20f, y + 15f, 8f, 0xFF2E7D32L)
+                        v.rect(c * cell + 6f, y + 40f, 40f, 6f, C.alpha(C.BLACK, 0.18f))
+                        treeSpr.draw(v, c * cell + 1f, y + 1f, 4f)
                     }
                 }
                 road -> {
-                    v.rect(0f, y, 800f, cell, 0xFF37474FL)
+                    v.rect(0f, y, 800f, cell, 0xFF3B4254L)
+                    v.rect(0f, y, 800f, 3f, 0xFF2A3040L)
                     val below = rows.getOrNull(r - 1)
                     if (below != null && below.kind == road) {
                         var dx = 0f
-                        while (dx < 800f) { v.rect(dx, y + cell - 2f, 26f, 4f, 0x88FFFFFFL); dx += 52f }
+                        while (dx < 800f) { v.rect(dx, y + cell - 2f, 26f, 4f, P.YELLOW); dx += 52f }
                     }
                     for (o in row.objs) drawCar(v, o, y, row.speed > 0f)
                 }
                 else -> {
-                    v.rect(0f, y, 800f, cell, 0xFF1E88E5L)
-                    var wx = ((time * 20f) % 60f) - 60f
-                    while (wx < 800f) { v.rect(wx, y + 12f + (r % 3) * 10f, 24f, 3f, 0x55FFFFFFL); wx += 60f }
-                    for (o in row.objs) {
-                        v.rect(o.x + 8f, y + 8f, o.w - 16f, cell - 16f, o.color)
-                        v.circle(o.x + 8f, y + cell / 2f, cell / 2f - 8f, o.color)
-                        v.circle(o.x + o.w - 8f, y + cell / 2f, cell / 2f - 8f, C.shade(o.color, 0.8f))
-                        v.rect(o.x + o.w / 2f - 1f, y + 12f, 2f, cell - 24f, C.shade(o.color, 0.7f))
+                    v.rect(0f, y, 800f, cell, 0xFF2F6FD0L)
+                    v.rect(0f, y + cell - 6f, 800f, 6f, 0xFF2A62BCL)
+                    var wx = ((time * 20f * (1 + r % 2)) % 80f) - 80f
+                    while (wx < 800f) {
+                        v.rect(wx, y + 10f + (r % 3) * 8f, 20f, 4f, 0xFF6FA8F0L)
+                        v.rect(wx + 40f, y + 30f, 14f, 4f, 0xFF6FA8F0L)
+                        wx += 80f
                     }
+                    for (o in row.objs) drawLog(v, o, y)
                 }
             }
         }
         drawChicken(v)
-        v.text("Pontos: $score", 12f, 24f, 20f, C.WHITE, false)
-        v.text("Recorde: $best", 790f - 120f, 24f, 16f, C.WHITE, false)
+        v.hudBar("PONTOS $score", "RECORDE $best")
+    }
+
+    private fun drawLog(v: View, o: Obj, y: Float) {
+        v.rect(o.x + 2f, y + 44f, o.w, 4f, C.alpha(C.BLACK, 0.22f))
+        v.bevel(o.x, y + 8f, o.w, cell - 20f, 0xFF9A6A44L, 3f)
+        var lx = o.x + 14f
+        while (lx < o.x + o.w - 14f) { v.rect(lx, y + 15f, 14f, 3f, 0xFF7A4F30L); v.rect(lx + 8f, y + 28f, 12f, 3f, 0xFF7A4F30L); lx += 34f }
+        v.rect(o.x, y + 8f, 8f, cell - 20f, 0xFFD2A878L)
+        v.rect(o.x + 2f, y + 16f, 4f, 14f, 0xFF9A6A44L)
+        v.rect(o.x + o.w - 8f, y + 8f, 8f, cell - 20f, 0xFFD2A878L)
+        v.rect(o.x + o.w - 6f, y + 16f, 4f, 14f, 0xFF9A6A44L)
     }
 
     private fun drawCar(v: View, o: Obj, y: Float, right: Boolean) {
-        v.rect(o.x, y + 9f, o.w, cell - 18f, o.color)
-        v.rect(o.x + o.w * 0.28f, y + 13f, o.w * 0.44f, cell - 26f, C.shade(o.color, 0.7f))
-        v.rect(o.x + o.w * 0.32f, y + 16f, o.w * 0.14f, cell - 32f, 0xFFB3E5FCL)
-        v.rect(o.x + o.w * 0.54f, y + 16f, o.w * 0.14f, cell - 32f, 0xFFB3E5FCL)
-        val hx = if (right) o.x + o.w - 5f else o.x
-        v.rect(hx, y + 12f, 5f, 6f, C.YELLOW)
-        v.rect(hx, y + cell - 18f, 5f, 6f, C.YELLOW)
-        v.rect(o.x + 8f, y + 6f, 14f, 5f, C.BLACK)
-        v.rect(o.x + o.w - 22f, y + 6f, 14f, 5f, C.BLACK)
-        v.rect(o.x + 8f, y + cell - 11f, 14f, 5f, C.BLACK)
-        v.rect(o.x + o.w - 22f, y + cell - 11f, 14f, 5f, C.BLACK)
+        v.rect(o.x + 2f, y + cell - 8f, o.w, 5f, C.alpha(C.BLACK, 0.25f))
+        v.bevel(o.x, y + 8f, o.w, cell - 20f, o.color, 3f)
+        val cabX = if (right) o.x + o.w * 0.30f else o.x + o.w * 0.18f
+        v.bevel(cabX, y + 12f, o.w * 0.5f, cell - 28f, C.shade(o.color, 0.8f), 2f)
+        v.rect(cabX + 4f, y + 16f, o.w * 0.5f - 8f, cell - 36f, 0xFF9FD8F5L)
+        v.rect(cabX + o.w * 0.25f - 1f, y + 16f, 2f, cell - 36f, C.shade(o.color, 0.8f))
+        val hx = if (right) o.x + o.w - 6f else o.x
+        v.rect(hx, y + 12f, 6f, 6f, P.YELLOW)
+        v.rect(hx, y + cell - 20f, 6f, 6f, P.YELLOW)
+        val tx = if (right) o.x else o.x + o.w - 4f
+        v.rect(tx, y + 12f, 4f, 6f, P.RED)
+        v.rect(tx, y + cell - 20f, 4f, 6f, P.RED)
+        for (wx in floatArrayOf(o.x + 8f, o.x + o.w - 24f)) {
+            v.rect(wx, y + 4f, 16f, 6f, P.INK)
+            v.rect(wx, y + cell - 12f, 16f, 6f, P.INK)
+            v.rect(wx + 5f, y + 5f, 6f, 3f, P.SLATE)
+            v.rect(wx + 5f, y + cell - 11f, 6f, 3f, P.SLATE)
+        }
     }
 
     private fun drawChicken(v: View) {
@@ -265,22 +327,14 @@ class ChickenGame : MiniGame(
         val cx = vx
         val cy = 325f - lift
         if (over) {
-            v.rect(cx - 20f, cy + 4f, 40f, 10f, C.WHITE)
-            v.rect(cx - 12f, cy + 8f, 24f, 8f, C.RED)
+            v.rect(cx - 24f, cy + 6f, 48f, 12f, P.WHITE)
+            v.rect(cx - 14f, cy + 10f, 28f, 8f, P.RED)
+            v.rect(cx - 30f, cy, 6f, 6f, P.WHITE)
+            v.rect(cx + 26f, cy + 4f, 6f, 6f, P.WHITE)
+            v.rect(cx - 4f, cy - 8f, 6f, 6f, P.WHITE)
             return
         }
-        v.circle(cx + 3f, cy + 18f, 15f, 0x33000000L)
-        v.line(cx - 6f, cy + 14f, cx - 9f, cy + 24f, 3f, C.ORANGE)
-        v.line(cx + 6f, cy + 14f, cx + 9f, cy + 24f, 3f, C.ORANGE)
-        v.circle(cx, cy, 17f, C.WHITE)
-        v.circle(cx - 8f, cy + 3f, 8f, 0xFFE0E0E0L)
-        v.circle(cx + 8f, cy + 3f, 8f, 0xFFE0E0E0L)
-        v.circle(cx, cy - 15f, 10f, C.WHITE)
-        v.circle(cx, cy - 25f, 4f, C.RED)
-        v.circle(cx - 4f, cy - 24f, 3f, C.RED)
-        v.circle(cx + 4f, cy - 24f, 3f, C.RED)
-        v.rect(cx - 3f, cy - 10f, 6f, 6f, C.ORANGE)
-        v.circle(cx - 4f, cy - 17f, 1.8f, C.BLACK)
-        v.circle(cx + 4f, cy - 17f, 1.8f, C.BLACK)
+        v.rect(cx - 16f, cy + 22f + lift, 32f, 6f, C.alpha(C.BLACK, 0.28f))
+        henSpr.draw(v, cx - 22f, cy - 30f, 4f)
     }
 }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.map
 
 enum class ThemeMode(val label: String) { PURPLE("Roxo"), DARK("Escuro"), BLACK("Preto") }
 enum class CastQuality(val label: String, val maxSide: Int, val jpeg: Int) {
+    LOW("Latência mínima (360p)", 640, 55),
     Q480("480p (leve)", 854, 65),
     Q720("720p (equilibrado)", 1280, 70),
     Q1080("1080p (pesado)", 1920, 75)

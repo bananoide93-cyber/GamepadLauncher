@@ -154,6 +154,13 @@ fun ExternalScreen(
                 }
             }
 
+            item {
+                InfoCard(
+                    "Menos atraso na TV",
+                    "1) Cabo USB-C → HDMI: a TV vira tela externa direta, sem codificar vídeo (atraso quase zero; os jogos do Arcade aparecem na TV).\n" +
+                        "2) Transmissão por Wi-Fi: use \"Latência mínima\" abaixo, 30 fps, Wi-Fi 5 GHz e a TV perto do roteador."
+                )
+            }
             item { Header("Configurações de transmissão") }
             item {
                 val q = CastQuality.entries

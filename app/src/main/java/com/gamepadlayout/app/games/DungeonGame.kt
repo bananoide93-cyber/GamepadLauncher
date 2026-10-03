@@ -218,15 +218,72 @@ class DungeonGame : MiniGame(
         if (m.hp <= 0) score += 50 + level * 5
     }
 
+    private val impPal = mapOf(
+        'W' to 0xFFEDE0C8L, 'R' to 0xFFC0463AL, 'D' to 0xFF8E2A22L, 'Y' to 0xFFFFD54FL, 'K' to P.INK
+    )
+    private val impA = Sprite(
+        listOf(
+            "W..........W",
+            "WW........WW",
+            ".WRRRRRRRRW.",
+            ".RRYRRRRYRR.",
+            ".RRKRRRRKRR.",
+            ".RRRRKKRRRR.",
+            "..RRKWWKRR..",
+            "..DDDDDDDD..",
+            ".DDDRDDRDDD.",
+            "DDDDDDDDDDDD",
+            "DD.DDDDDD.DD",
+            "D..DDDDDD..D",
+            "...DD..DD...",
+            "..DDD..DDD.."
+        ), impPal
+    )
+    private val impB = Sprite(
+        listOf(
+            "W..........W",
+            "WW........WW",
+            ".WRRRRRRRRW.",
+            ".RRYRRRRYRR.",
+            ".RRKRRRRKRR.",
+            ".RRRRKKRRRR.",
+            "..RRKWWKRR..",
+            "..DDDDDDDD..",
+            ".DDDRDDRDDD.",
+            "DDDDDDDDDDDD",
+            "DD.DDDDDD.DD",
+            "D..DDDDDD..D",
+            "..DD....DD..",
+            "..DDD..DDD.."
+        ), impPal
+    )
+    private val gunSpr = Sprite(
+        listOf(
+            "........KKKK........",
+            ".......KNMMNK.......",
+            ".......KNMMNK.......",
+            ".......KNMMNK.......",
+            "......KKNMMNKK......",
+            "......KBBBBBBK......",
+            ".....KBBDDDDBBK.....",
+            ".....KBBBBBBBBK.....",
+            "....KBBBBBBBBBBK....",
+            "....KFFFFFFFFFFK....",
+            "...KFFFFFFFFFFFFK...",
+            "...KFFFFFFFFFFFFK..."
+        ),
+        mapOf('K' to P.INK, 'N' to 0xFF4A5568L, 'M' to 0xFFA0AEC0L, 'B' to 0xFF8A5A3AL, 'D' to 0xFF5E3B24L, 'F' to 0xFFE8B48AL)
+    )
+
     override fun draw(g: Gfx) {
         val w = g.width
         val h = g.height
-        for (i in 0 until 6) {
-            val t = i / 5f
-            g.rect(0f, h / 2f * i / 6f, w, h / 12f + 1f, C.shade(0xFF2A2A5CL, 0.5f + 0.5f * t))
-            g.rect(0f, h / 2f + h / 2f * i / 6f, w, h / 12f + 1f, C.shade(0xFF5A4636L, 0.35f + 0.65f * t))
+        for (i in 0 until 10) {
+            val t = i / 9f
+            g.rect(0f, h / 2f * i / 10f, w, h / 20f + 1f, C.shade(0xFF2A2A5CL, 0.45f + 0.55f * t))
+            g.rect(0f, h / 2f + h / 2f * i / 10f, w, h / 20f + 1f, C.shade(0xFF5A4636L, 0.3f + 0.7f * t))
         }
-        val cols = (w / 4f).toInt().coerceIn(80, 260)
+        val cols = (w / 5f).toInt().coerceIn(64, 180)
         val cw = w / cols
         if (zbuf.size != cols) zbuf = FloatArray(cols)
 
@@ -236,6 +293,7 @@ class DungeonGame : MiniGame(
         val planeX = -dirY * k
         val planeY = dirX * k
         val wallColors = longArrayOf(0xFF9C3B2EL, 0xFF5C6B8AL, 0xFF6A4BA8L)
+        val rowsN = 6
 
         for (col in 0 until cols) {
             val camX = 2f * col / cols - 1f
@@ -266,14 +324,26 @@ class DungeonGame : MiniGame(
 
             var wallX = if (side == 0) py + perp * rdy else px + perp * rdx
             wallX -= floor(wallX)
-            val mortar = (wallX * 4f) % 1f < 0.07f
             val base = wallColors[((mx + my) % 3 + 3) % 3]
-            var f = (if (side == 1) 0.72f else 1f) / (1f + perp * perp * 0.07f)
-            if (mortar) f *= 0.7f
+            val f = ((if (side == 1) 0.72f else 1f) / (1f + perp * perp * 0.07f)).coerceIn(0.12f, 1f)
             val lineH = h / perp
-            val y0 = max(0f, h / 2f - lineH / 2f)
-            val y1 = min(h, h / 2f + lineH / 2f)
-            g.rect(col * cw, y0, cw + 1f, y1 - y0, C.shade(base, f.coerceIn(0.12f, 1f)))
+            val top = h / 2f - lineH / 2f
+            val band = lineH / rowsN
+            val mortar = C.shade(base, f * 0.45f)
+            for (r in 0 until rowsN) {
+                val ya = top + band * r
+                val yb = ya + band
+                if (yb <= 0f || ya >= h) continue
+                val y0 = max(0f, ya)
+                val y1 = min(h, yb)
+                val bu = wallX * 3f + (if (r % 2 == 0) 0f else 0.5f)
+                val frac = bu - floor(bu)
+                val id = floor(bu).toInt() + r * 7 + mx * 3 + my * 5
+                val vary = 0.88f + ((id * 37) and 3) * 0.045f
+                val colr = if (frac < 0.07f) mortar else C.shade(base, (f * vary).coerceIn(0.1f, 1f))
+                g.rect(col * cw, y0, cw + 1f, y1 - y0, colr)
+                if (ya >= 0f) g.rect(col * cw, ya, cw + 1f, max(1f, band * 0.09f), mortar)
+            }
         }
 
         drawMonsters(g, cols, cw, dirX, dirY, planeX, planeY)
@@ -281,7 +351,6 @@ class DungeonGame : MiniGame(
     }
 
     private fun drawMonsters(g: Gfx, cols: Int, cw: Float, dirX: Float, dirY: Float, planeX: Float, planeY: Float) {
-        val w = g.width
         val h = g.height
         val invDet = 1f / (planeX * dirY - dirX * planeY)
         val vis = ArrayList<FloatArray>()
@@ -302,7 +371,8 @@ class DungeonGame : MiniGame(
             val ty = v[2]
             val sprH = abs(h / ty)
             val eh = sprH * 0.85f
-            val ew = eh * 0.62f
+            val spr = if (sin(m.phase) > 0f) impA else impB
+            val ew = eh * spr.w / spr.h
             val cx = (cols / 2f) * (1f + tx / ty) * cw
             val top = h / 2f + sprH / 2f - eh
             val left = cx - ew / 2f
@@ -310,21 +380,10 @@ class DungeonGame : MiniGame(
             val c1 = min(cols - 1, ((left + ew) / cw).toInt())
             val f = (1f / (1f + ty * ty * 0.07f)).coerceIn(0.25f, 1f)
             val flash = m.hurt > 0f
-            val body = if (flash) 0xFFFFFFFFL else C.shade(0xFF8E2A22L, f)
-            val head = if (flash) 0xFFFFFFFFL else C.shade(0xFFC0463AL, f)
-            val horn = C.shade(0xFFEDE0C8L, f)
-            val eye = C.shade(C.YELLOW, f)
-            val legSwing = sin(m.phase) * eh * 0.03f
             for (c in c0..c1) {
                 if (zbuf[c] < ty) continue
-                val u = ((c * cw + cw / 2f - left) / ew).coerceIn(0f, 1f)
-                val x = c * cw
-                if (u in 0.12f..0.88f) g.rect(x, top + eh * 0.30f, cw + 1f, eh * 0.60f, body)
-                if (u in 0.20f..0.45f) g.rect(x, top + eh * 0.90f + legSwing, cw + 1f, eh * 0.10f, body)
-                if (u in 0.55f..0.80f) g.rect(x, top + eh * 0.90f - legSwing, cw + 1f, eh * 0.10f, body)
-                if (u in 0.28f..0.72f) g.rect(x, top + eh * 0.05f, cw + 1f, eh * 0.25f, head)
-                if (u in 0.30f..0.36f || u in 0.64f..0.70f) g.rect(x, top, cw + 1f, eh * 0.08f, horn)
-                if (u in 0.34f..0.44f || u in 0.56f..0.66f) g.rect(x, top + eh * 0.13f, cw + 1f, eh * 0.05f, eye)
+                val u = ((c * cw + cw / 2f - left) / ew).coerceIn(0f, 0.999f)
+                spr.drawColumn(g, u, c * cw, cw, top, eh, f, flash)
             }
         }
     }
@@ -332,41 +391,64 @@ class DungeonGame : MiniGame(
     private fun drawHud(g: Gfx) {
         val w = g.width
         val h = g.height
+        val v = View(g, w, h)
+        val u = h / 450f
         if (hurtFlash > 0f) g.rect(0f, 0f, w, h, C.alpha(C.RED, (hurtFlash * 1.4f).coerceIn(0f, 0.45f)))
 
-        val kick = if (muzzle > 0f) h * 0.02f else 0f
-        if (muzzle > 0f) g.circle(w / 2f, h * 0.60f, h * 0.05f, C.alpha(C.YELLOW, 0.9f))
-        g.rect(w / 2f - w * 0.028f, h * 0.68f + kick, w * 0.056f, h * 0.32f, 0xFF3A3A3AL)
-        g.rect(w / 2f - w * 0.018f, h * 0.64f + kick, w * 0.036f, h * 0.10f, 0xFF6A6A6AL)
+        val kick = if (muzzle > 0f) h * 0.025f else 0f
+        val gpx = h * 0.024f
+        val gx = w / 2f - gunSpr.w * gpx / 2f
+        val gy = h - gunSpr.h * gpx + kick + gpx * 1.5f
+        if (muzzle > 0f) {
+            val fx = w / 2f
+            val fy = gy - gpx * 1.2f
+            g.rect(fx - gpx * 2.5f, fy - gpx * 1.5f, gpx * 5f, gpx * 3f, P.ORANGE)
+            g.rect(fx - gpx * 1.5f, fy - gpx * 2.5f, gpx * 3f, gpx * 5f, P.YELLOW)
+            g.rect(fx - gpx, fy - gpx, gpx * 2f, gpx * 2f, P.WHITE)
+        }
+        gunSpr.draw(v, gx, gy, gpx)
 
-        g.line(w / 2f - 8f, h / 2f, w / 2f + 8f, h / 2f, 2f, C.alpha(C.WHITE, 0.8f))
-        g.line(w / 2f, h / 2f - 8f, w / 2f, h / 2f + 8f, 2f, C.alpha(C.WHITE, 0.8f))
+        // mira
+        val cxm = w / 2f
+        val cym = h / 2f
+        g.rect(cxm - 9f * u, cym - 1f * u, 6f * u, 2f * u, C.alpha(P.WHITE, 0.85f))
+        g.rect(cxm + 3f * u, cym - 1f * u, 6f * u, 2f * u, C.alpha(P.WHITE, 0.85f))
+        g.rect(cxm - 1f * u, cym - 9f * u, 2f * u, 6f * u, C.alpha(P.WHITE, 0.85f))
+        g.rect(cxm - 1f * u, cym + 3f * u, 2f * u, 6f * u, C.alpha(P.WHITE, 0.85f))
 
+        // barra de vida
         val bw = w * 0.26f
-        val by = h - h * 0.07f
-        g.rect(w * 0.03f, by, bw, h * 0.03f, C.alpha(C.BLACK, 0.6f))
-        val frac = hp / 100f
-        val hc = if (frac > 0.5f) C.GREEN else if (frac > 0.25f) C.ORANGE else C.RED
-        g.rect(w * 0.03f, by, bw * frac, h * 0.03f, hc)
-        g.text("Vida $hp", w * 0.03f, by - 6f, h * 0.04f, C.WHITE, false)
+        val bh = h * 0.045f
+        val bx = w * 0.03f
+        val by = h * 0.915f
+        g.rect(bx - 3f * u, by - 3f * u, bw + 6f * u, bh + 6f * u, P.INK)
+        g.rect(bx, by, bw, bh, 0xFF3A2A3AL)
+        val frac = (hp / 100f).coerceIn(0f, 1f)
+        val hc = if (frac > 0.5f) P.GREEN else if (frac > 0.25f) P.ORANGE else P.RED
+        g.rect(bx, by, bw * frac, bh, hc)
+        g.rect(bx, by, bw * frac, bh * 0.3f, P.light(hc, 0.4f))
+        v.pixText("VIDA $hp", bx, by - h * 0.055f, 2.2f * u, P.WHITE)
 
         val alive = monsters.count { it.hp > 0 }
-        g.text("Pontos: $score   Nível $level   Monstros: $alive", w - 12f - w * 0.34f, h * 0.06f, h * 0.04f, C.WHITE, false)
+        val info = "PONTOS $score  NIVEL $level  MONSTROS $alive"
+        val ipx = 2.2f * u
+        v.pixText(info, w - 10f * u - PixelFont.width(PixelFont.clean(info), ipx), 8f * u, ipx, P.WHITE)
 
         val ms = min(w, h) * 0.011f
         val ox = 8f
         val oy = 8f
-        g.rect(ox, oy, mw * ms, mh * ms, C.alpha(C.BLACK, 0.45f))
+        g.rect(ox - 2f, oy - 2f, mw * ms + 4f, mh * ms + 4f, P.INK)
+        g.rect(ox, oy, mw * ms, mh * ms, C.alpha(P.DUSK, 0.8f))
         for (y in 0 until mh) for (x in 0 until mw) {
-            if (map[y][x] != '0') g.rect(ox + x * ms, oy + y * ms, ms, ms, C.alpha(C.LILAC, 0.55f))
+            if (map[y][x] != '0') g.rect(ox + x * ms, oy + y * ms, ms, ms, C.alpha(P.LILAC, 0.55f))
         }
-        for (m in monsters) if (m.hp > 0) g.circle(ox + m.x * ms, oy + m.y * ms, ms * 0.45f, C.RED)
-        g.circle(ox + px * ms, oy + py * ms, ms * 0.5f, C.YELLOW)
-        g.line(ox + px * ms, oy + py * ms, ox + (px + cos(angle) * 1.2f) * ms, oy + (py + sin(angle) * 1.2f) * ms, 1.5f, C.YELLOW)
+        for (m in monsters) if (m.hp > 0) g.rect(ox + m.x * ms - ms * 0.4f, oy + m.y * ms - ms * 0.4f, ms * 0.8f, ms * 0.8f, P.RED)
+        g.rect(ox + px * ms - ms * 0.5f, oy + py * ms - ms * 0.5f, ms, ms, P.YELLOW)
+        g.line(ox + px * ms, oy + py * ms, ox + (px + cos(angle) * 1.4f) * ms, oy + (py + sin(angle) * 1.4f) * ms, 1.5f, P.YELLOW)
 
         if (banner > 0f) {
-            val msg = if (level == 1) "Nível 1 — elimine todos os monstros" else "Nível $level"
-            g.text(msg, w / 2f, h * 0.25f, h * 0.07f, C.alpha(C.WHITE, min(1f, banner)), true)
+            val msg = if (level == 1) "NIVEL 1 - ELIMINE OS MONSTROS" else "NIVEL $level"
+            v.pixText(msg, w / 2f, h * 0.2f, 4f * u, C.alpha(P.YELLOW, min(1f, banner)), center = true)
         }
     }
 }

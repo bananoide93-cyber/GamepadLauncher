@@ -70,6 +70,8 @@ class MjpegServer(
     private fun handle(s: Socket) {
         try {
             s.tcpNoDelay = true
+            // Buffer de envio pequeno: se a rede atrasar, o atraso não se acumula (sempre vai o quadro mais novo).
+            runCatching { s.sendBufferSize = 32 * 1024 }
             s.soTimeout = 8000
             val reader = BufferedReader(InputStreamReader(s.getInputStream()))
             val line = reader.readLine() ?: return

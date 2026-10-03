@@ -102,11 +102,14 @@ abstract class MiniGame(
     }
 
     fun drawOverlay(g: Gfx) {
-        g.rect(0f, 0f, g.width, g.height, C.alpha(C.BLACK, 0.55f))
-        val cx = g.width / 2f
-        val cy = g.height / 2f
-        g.text("Fim de jogo", cx, cy - 20f, g.height * 0.09f, C.WHITE, true)
-        g.text("Pontos: $score   Recorde: $best", cx, cy + g.height * 0.04f, g.height * 0.05f, C.LILAC, true)
-        g.text("A (ou toque) para jogar de novo", cx, cy + g.height * 0.12f, g.height * 0.04f, C.WHITE, true)
+        val v = View(g, 800f, 450f)
+        g.rect(0f, 0f, g.width, g.height, C.alpha(C.BLACK, 0.6f))
+        v.rect(150f, 140f, 500f, 170f, P.INK)
+        v.rect(150f, 140f, 500f, 4f, P.VIOLET)
+        v.rect(150f, 306f, 500f, 4f, P.VIOLET)
+        v.pixText("FIM DE JOGO", 400f, 160f, 6f, P.YELLOW, center = true)
+        v.pixText("PONTOS $score", 400f, 218f, 3.2f, P.WHITE, center = true)
+        v.pixText("RECORDE $best", 400f, 248f, 2.6f, P.LILAC, center = true)
+        v.pixText("A OU TOQUE PARA JOGAR", 400f, 282f, 2.2f, P.CYAN, center = true, shadow = false)
     }
 }

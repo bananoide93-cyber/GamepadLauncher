@@ -97,6 +97,27 @@ class ComposeGfx : Gfx {
     }
 }
 
+/** Permite que a tela externa (TV por cabo/Presentation) desenhe o mesmo jogo, sem codificar vídeo: atraso mínimo. */
+object ArcadeMirror {
+    var game by mutableStateOf<MiniGame?>(null)
+    var tick by mutableLongStateOf(0L)
+}
+
+@Composable
+fun ArcadeMirrorCanvas() {
+    val gfx = remember { ComposeGfx() }
+    Canvas(Modifier.fillMaxSize().background(Color.Black)) {
+        val t = ArcadeMirror.tick
+        val g = ArcadeMirror.game
+        if (t >= 0L && g != null) {
+            gfx.scope = this
+            g.draw(gfx)
+            if (g.over) g.drawOverlay(gfx)
+            Retro.crt(gfx)
+        }
+    }
+}
+
 @Composable
 fun ArcadeScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val ctx = LocalContext.current
@@ -115,7 +136,7 @@ fun ArcadeScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     onClick = { onOpen(g.id) },
                     modifier = Modifier.fillMaxWidth().height(170.dp),
                     focusScale = 1.04f,
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Column(Modifier.fillMaxSize().padding(14.dp)) {
                         Text(g.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
@@ -157,6 +178,10 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
     val focus = remember { FocusRequester() }
     val stickPx = with(LocalDensity.current) { 70.dp.toPx() }
 
+    DisposableEffect(game) {
+        ArcadeMirror.game = game
+        onDispose { ArcadeMirror.game = null }
+    }
     DisposableEffect(Unit) {
         onDispose {
             GamepadInput.gameActive = false
@@ -246,6 +271,7 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
                 input.clearEdges()
             }
             tick++
+            ArcadeMirror.tick = tick
         }
     }
 
@@ -283,7 +309,10 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
                 gfx.scope = this
                 game.draw(gfx)
                 if (game.over) game.drawOverlay(gfx)
-                gfx.text("START: pausa", size.width - size.height * 0.28f, size.height - 8f, size.height * 0.032f, 0x88FFFFFFL, false)
+                Retro.crt(gfx)
+                val hv = View(gfx, size.width, size.height)
+                val hp = size.height * 0.0058f
+                hv.pixText("START PAUSA", size.width - PixelFont.width("START PAUSA", hp) - 8f, size.height - hp * 9f, hp, C.alpha(P.WHITE, 0.55f), shadow = false)
             }
         }
         if (paused) {

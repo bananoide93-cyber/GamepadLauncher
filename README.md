@@ -42,3 +42,10 @@ Se o repositório já tiver histórico: `git push -u origin main --force`.
 - Novo módulo **Arcade** com 5 jogos nativos (pasta `games/`): Dungeon 3D (estilo Doom, raycasting), Nave Espacial,
   Galinha na Estrada, Cobrinha e Tijolinhos. Controle ou toque. START pausa. Recordes salvos no aparelho.
 - A lógica dos jogos não depende do Android (interface `Gfx`), por isso foi compilada e testada por simulação.
+
+## v6
+- Novo ícone minimalista (roxo chapado).
+- Home em blocos quadrados (estilo console, original), com faixa colorida e detalhe por categoria; vale também para a tela da TV.
+- Jogos do Arcade com visual retrô: sprites em pixel art, fonte pixelada, efeito de monitor antigo (CRT).
+- Novos módulos: Arquivos, Downloads, Wi-Fi, Bluetooth e Sistema (bateria, RAM, armazenamento, galeria, música).
+- TV com menos atraso: jogos do Arcade aparecem na tela externa por cabo (sem codificar vídeo); transmissão Wi-Fi com predefinição "Latência mínima", quadros adiados em vez de descartados e buffer de rede menor.
