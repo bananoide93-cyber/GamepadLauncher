@@ -153,7 +153,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Hint(key: String, label: String) {
+internal fun Hint(key: String, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         Box(
             Modifier.size(20.dp).clip(CircleShape).border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape),
@@ -164,7 +164,7 @@ private fun Hint(key: String, label: String) {
 }
 
 @Composable
-private fun StatusBar(status: SystemStatus, userName: String, controllers: List<ControllerInfo>, onProfile: () -> Unit) {
+internal fun StatusBar(status: SystemStatus, userName: String, controllers: List<ControllerInfo>, onProfile: () -> Unit) {
     val st = LocalConsoleStyle.current
     Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.SportsEsports, null, Modifier.size(26.dp))

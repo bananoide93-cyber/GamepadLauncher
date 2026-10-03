@@ -57,6 +57,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val down = event.action == KeyEvent.ACTION_DOWN
+        // Jogo do Arcade rodando: o controle vira entrada de jogo.
+        if (GamepadInput.gameActive && GamepadInput.handleGameKey(code, down, event.repeatCount)) return true
         val btn = GamepadInput.mapKey(code)
 
         if (btn == null) {
@@ -65,6 +67,8 @@ class MainActivity : ComponentActivity() {
                 when (code) {
                     KeyEvent.KEYCODE_DPAD_LEFT -> { if (down) TvNav.move(-1); return true }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> { if (down) TvNav.move(1); return true }
+                    KeyEvent.KEYCODE_DPAD_UP -> { if (down) TvNav.moveV(-1); return true }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> { if (down) TvNav.moveV(1); return true }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                         if (down && event.repeatCount == 0) TvNav.confirm()
                         return true
@@ -98,6 +102,7 @@ class MainActivity : ComponentActivity() {
         lastFire[btn.ordinal] = now
         GamepadInput.lastButton.value = btn
         GamepadInput.rawButtons.tryEmit(btn)
+        if (GamepadInput.gameActive) return
         val action = GamepadInput.actionFor(btn)
         // Com o teclado do controle aberto, só Voltar/Confirmar/Opções continuam valendo.
         if (GamepadInput.keyboardOpen &&
@@ -133,6 +138,8 @@ class MainActivity : ComponentActivity() {
             ev.action == MotionEvent.ACTION_MOVE
         if (joystick) {
             GamepadInput.onMotion(ev)
+            // Em jogo o app lê os analógicos direto; bloqueia a conversão automática em D-pad.
+            if (GamepadInput.gameActive) return true
             if (GamepadInput.browserActive && !GamepadInput.keyboardOpen) {
                 // No navegador o analógico é mouse; só o D-pad (hat) vira teclas de foco.
                 hatNavigate(ev)

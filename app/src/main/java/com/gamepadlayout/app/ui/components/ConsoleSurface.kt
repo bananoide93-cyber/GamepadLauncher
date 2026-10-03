@@ -145,3 +145,55 @@ fun ConsoleSurface(
         content(focused)
     }
 }
+
+/** Mesmo visual do [ConsoleSurface], mas o destaque é controlado por estado (usado na Home da TV). */
+@Composable
+fun ConsoleCard(
+    focused: Boolean,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(18.dp),
+    focusScale: Float = 1.08f,
+    background: Color? = null,
+    content: @Composable BoxScope.(Boolean) -> Unit
+) {
+    val st = LocalConsoleStyle.current
+    val scale by animateFloatAsState(
+        targetValue = if (focused) focusScale else 1f,
+        animationSpec = tween(st.dur(150)),
+        label = "cardScale"
+    )
+    val glow by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(st.dur(200)),
+        label = "cardGlow"
+    )
+    val base = background ?: st.cardColor
+    val fill = lerp(base, st.accent.copy(alpha = 0.38f), glow)
+    Box(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .drawBehind {
+                if (glow > 0.01f) {
+                    val cr = 22.dp.toPx()
+                    for (i in 3 downTo 1) {
+                        val g = i * 5.dp.toPx()
+                        drawRoundRect(
+                            color = st.accent.copy(alpha = 0.10f * st.effects * glow),
+                            topLeft = Offset(-g, -g),
+                            size = Size(size.width + g * 2, size.height + g * 2),
+                            cornerRadius = CornerRadius(cr + g)
+                        )
+                    }
+                }
+            }
+            .clip(shape)
+            .background(fill)
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) st.accentSoft else Color.White.copy(alpha = 0.08f),
+                shape = shape
+            )
+    ) {
+        content(focused)
+    }
+}

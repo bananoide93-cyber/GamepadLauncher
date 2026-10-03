@@ -18,6 +18,14 @@ object GamepadInput {
     @Volatile var browserActive = false
     @Volatile var overlayOpen = false
     @Volatile var keyboardOpen = false
+
+    /** true enquanto um jogo do Arcade está rodando: o controle vira entrada de jogo (sem navegação de foco). */
+    @Volatile var gameActive = false
+    @Volatile var hatX = 0f
+    @Volatile var hatY = 0f
+    @Volatile var dpadX = 0
+    @Volatile var dpadY = 0
+    val held = BooleanArray(PadButton.entries.size)
     @Volatile var controllerConnected = false
     @Volatile var mapping: Map<PadButton, PadAction> = ControllerMapping.defaults
 
@@ -80,9 +88,58 @@ object GamepadInput {
         rightX = if (abs(z) >= abs(rx)) z else rx
         rightY = if (abs(rz) >= abs(ry)) rz else ry
 
+        hatX = ev.getAxisValue(MotionEvent.AXIS_HAT_X)
+        hatY = ev.getAxisValue(MotionEvent.AXIS_HAT_Y)
+
         val lt = max(ev.getAxisValue(MotionEvent.AXIS_LTRIGGER), ev.getAxisValue(MotionEvent.AXIS_BRAKE))
         val rt = max(ev.getAxisValue(MotionEvent.AXIS_RTRIGGER), ev.getAxisValue(MotionEvent.AXIS_GAS))
+        held[PadButton.R2.ordinal] = rt > 0.5f
+        held[PadButton.L2.ordinal] = lt > 0.5f
         if (rt > 0.6f && !rDown) { rDown = true; onTrigger?.invoke(PadButton.R2) } else if (rt < 0.3f) rDown = false
         if (lt > 0.6f && !lDown) { lDown = true; onTrigger?.invoke(PadButton.L2) } else if (lt < 0.3f) lDown = false
+    }
+
+    // ------------------------------------------------------------ entrada para jogos
+
+    /** Direção horizontal combinada: analógico esquerdo, hat ou D-pad (-1..1). */
+    fun dirX(): Float = when {
+        abs(leftX) > 0.3f -> leftX
+        hatX != 0f -> hatX
+        else -> dpadX.toFloat()
+    }
+
+    /** Direção vertical combinada (negativo = para cima). */
+    fun dirY(): Float = when {
+        abs(leftY) > 0.3f -> leftY
+        hatY != 0f -> hatY
+        else -> dpadY.toFloat()
+    }
+
+    fun isHeld(b: PadButton): Boolean = held[b.ordinal]
+
+    fun resetGameInput() {
+        for (i in held.indices) held[i] = false
+        dpadX = 0
+        dpadY = 0
+    }
+
+    /** Teclas durante um jogo: guarda botões/D-pad "segurados" e consome o evento. */
+    fun handleGameKey(code: Int, down: Boolean, repeat: Int): Boolean {
+        val b = mapKey(code)
+        if (b != null) {
+            held[b.ordinal] = down
+            if (down && repeat == 0) {
+                lastButton.value = b
+                rawButtons.tryEmit(b)
+            }
+            return true
+        }
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> { dpadX = if (down) -1 else if (dpadX == -1) 0 else dpadX; return true }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> { dpadX = if (down) 1 else if (dpadX == 1) 0 else dpadX; return true }
+            KeyEvent.KEYCODE_DPAD_UP -> { dpadY = if (down) -1 else if (dpadY == -1) 0 else dpadY; return true }
+            KeyEvent.KEYCODE_DPAD_DOWN -> { dpadY = if (down) 1 else if (dpadY == 1) 0 else dpadY; return true }
+        }
+        return false
     }
 }

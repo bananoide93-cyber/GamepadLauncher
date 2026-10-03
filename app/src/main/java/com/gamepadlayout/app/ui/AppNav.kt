@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,6 +66,8 @@ import com.gamepadlayout.app.data.SettingsViewModel
 import com.gamepadlayout.app.display.ExternalDisplayInfo
 import com.gamepadlayout.app.display.ExternalSession
 import com.gamepadlayout.app.display.TvNav
+import com.gamepadlayout.app.games.ArcadeGameScreen
+import com.gamepadlayout.app.games.ArcadeScreen
 import com.gamepadlayout.app.input.ControllerMapping
 import com.gamepadlayout.app.input.GamepadInput
 import com.gamepadlayout.app.input.PadAction
@@ -96,6 +100,8 @@ sealed interface Screen {
     data object Controller : Screen
     data object External : Screen
     data object TvControl : Screen
+    data object Arcade : Screen
+    data class ArcadeGame(val id: String) : Screen
     data class Soon(val title: String) : Screen
 }
 
@@ -173,8 +179,9 @@ fun GamepadLayoutRoot() {
         LaunchedEffect(settings) { TvNav.settings.value = settings }
         LaunchedEffect(library) {
             TvNav.games.value = library
-            TvNav.selected.value = TvNav.selected.value.coerceIn(0, max(0, library.lastIndex))
+            TvNav.clamp()
         }
+        LaunchedEffect(controllers) { TvNav.controllers.value = controllers }
         SideEffect {
             GamepadInput.overlayOpen = overlayOpen
             GamepadInput.controllerConnected = controllers.isNotEmpty()
@@ -182,7 +189,7 @@ fun GamepadLayoutRoot() {
         }
         LaunchedEffect(Unit) {
             GamepadInput.events.collect { a ->
-                if (a == PadAction.MENU && stack.last() !is Screen.Boot) quickMenu = !quickMenu
+                if (a == PadAction.MENU && stack.last() !is Screen.Boot && stack.last() !is Screen.ArcadeGame) quickMenu = !quickMenu
             }
         }
         // Botão Home do Android (quando o app é a tela inicial) volta para a Home do app
@@ -219,11 +226,18 @@ fun GamepadLayoutRoot() {
                 Category.SETTINGS -> push(Screen.Settings)
                 Category.EXTERNAL -> push(Screen.External)
                 Category.CONTROLLER -> push(Screen.Controller)
+                Category.ARCADE -> push(Screen.Arcade)
                 Category.FILES -> push(Screen.Soon("Arquivos"))
                 Category.DOWNLOADS -> SystemIntents.downloads(ctx)
                 Category.WIFI -> SystemIntents.wifi(ctx)
                 Category.BLUETOOTH -> SystemIntents.bluetooth(ctx)
             }
+        }
+
+        // Home da TV: categorias abrem a tela no celular; "Jogos" desce para a fileira de jogos
+        SideEffect {
+            TvNav.onCategory = { c -> if (c == Category.GAMES) TvNav.focusGames() else open(c) }
+            TvNav.onAddGame = { push(Screen.AppPicker) }
         }
 
         Box(Modifier.fillMaxSize()) {
@@ -281,6 +295,8 @@ fun GamepadLayoutRoot() {
                             onBack = { pop() }
                         )
                         Screen.TvControl -> TvControlScreen(onStop = { stopTv() })
+                        Screen.Arcade -> ArcadeScreen(onBack = { pop() }, onOpen = { push(Screen.ArcadeGame(it)) })
+                        is Screen.ArcadeGame -> ArcadeGameScreen(screen.id, onExit = { pop() })
                         is Screen.Soon -> ScreenScaffold(screen.title, onBack = { pop() }) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
@@ -338,7 +354,7 @@ fun GamepadLayoutRoot() {
     }
 }
 
-/** Celular como controle: a Home está na TV; D-pad/A no controle (ou botões na tela) escolhem o jogo. */
+/** Celular como controle: a Home está na TV; D-pad/A no controle (ou os botões na tela) navegam nela. */
 @Composable
 private fun TvControlScreen(onStop: () -> Unit) {
     DisposableEffect(Unit) {
@@ -346,8 +362,12 @@ private fun TvControlScreen(onStop: () -> Unit) {
         onDispose { TvNav.controlling = false }
     }
     BackHandler { onStop() }
+    val row by TvNav.row.collectAsStateWithLifecycle()
+    val col by TvNav.col.collectAsStateWithLifecycle()
     val games by TvNav.games.collectAsStateWithLifecycle()
-    val sel by TvNav.selected.collectAsStateWithLifecycle()
+    val tvSettings by TvNav.settings.collectAsStateWithLifecycle()
+    val cats = Category.entries.filter { it.name !in tvSettings.hiddenCategories }
+    val label = if (row == 0) cats.getOrNull(col)?.label ?: "" else games.getOrNull(col)?.label ?: "Adicionar jogo"
 
     ScreenScaffold("Controlando a TV", onBack = onStop) {
         Column(
@@ -355,28 +375,36 @@ private fun TvControlScreen(onStop: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("A Home do Gamepad Layout está na tela externa.", fontSize = 15.sp)
+            Text("A Home do Gamepad Layout está na tela externa.", fontSize = 14.sp)
             Text(
-                "Use ◀ ▶ e A no controle, ou os botões abaixo. B volta ao celular.",
-                fontSize = 12.sp,
+                "D-pad e A no controle, ou os botões abaixo. B volta ao celular.",
+                fontSize = 11.sp,
                 color = Color.White.copy(alpha = 0.7f)
             )
-            Spacer(Modifier.height(12.dp))
-            Text(games.getOrNull(sel)?.label ?: "Nenhum jogo na biblioteca", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                ConsoleSurface(onClick = { TvNav.move(-1) }, modifier = Modifier.size(52.dp), shape = CircleShape) {
-                    Icon(Icons.Rounded.ChevronLeft, null, Modifier.align(Alignment.Center).size(28.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(label, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                ConsoleSurface(onClick = { TvNav.move(-1) }, modifier = Modifier.size(46.dp), shape = CircleShape) {
+                    Icon(Icons.Rounded.ChevronLeft, null, Modifier.align(Alignment.Center).size(26.dp))
                 }
-                ConsoleSurface(onClick = { TvNav.confirm() }, modifier = Modifier.width(140.dp).height(52.dp), shape = RoundedCornerShape(26.dp)) {
-                    Text("Jogar", Modifier.align(Alignment.Center), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ConsoleSurface(onClick = { TvNav.moveV(-1) }, modifier = Modifier.size(46.dp), shape = CircleShape) {
+                        Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.align(Alignment.Center).size(26.dp))
+                    }
+                    ConsoleSurface(onClick = { TvNav.confirm() }, modifier = Modifier.width(110.dp).height(46.dp), shape = RoundedCornerShape(23.dp)) {
+                        Text("OK", Modifier.align(Alignment.Center), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    }
+                    ConsoleSurface(onClick = { TvNav.moveV(1) }, modifier = Modifier.size(46.dp), shape = CircleShape) {
+                        Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.align(Alignment.Center).size(26.dp))
+                    }
                 }
-                ConsoleSurface(onClick = { TvNav.move(1) }, modifier = Modifier.size(52.dp), shape = CircleShape) {
-                    Icon(Icons.Rounded.ChevronRight, null, Modifier.align(Alignment.Center).size(28.dp))
+                ConsoleSurface(onClick = { TvNav.move(1) }, modifier = Modifier.size(46.dp), shape = CircleShape) {
+                    Icon(Icons.Rounded.ChevronRight, null, Modifier.align(Alignment.Center).size(26.dp))
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            ConsoleSurface(onClick = onStop, modifier = Modifier.width(240.dp).height(44.dp), shape = RoundedCornerShape(22.dp)) {
+            Spacer(Modifier.height(8.dp))
+            ConsoleSurface(onClick = onStop, modifier = Modifier.width(240.dp).height(40.dp), shape = RoundedCornerShape(20.dp)) {
                 Text("Parar TV e voltar ao celular", Modifier.align(Alignment.Center), fontSize = 13.sp)
             }
         }

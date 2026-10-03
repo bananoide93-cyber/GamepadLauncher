@@ -8,33 +8,65 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.gamepadlayout.app.controller.ControllerInfo
 import com.gamepadlayout.app.data.AppSettings
 import com.gamepadlayout.app.data.LibraryApp
+import com.gamepadlayout.app.ui.home.Category
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
-/** Estado compartilhado entre o celular (controle) e a Home exibida na TV. */
+/**
+ * Estado compartilhado entre o celular (que recebe o controle) e a Home exibida na TV.
+ * A Home da TV tem o mesmo layout da Home do celular: linha 0 = categorias, linha 1 = jogos.
+ */
 object TvNav {
     val settings = MutableStateFlow(AppSettings())
     val games = MutableStateFlow<List<LibraryApp>>(emptyList())
-    val selected = MutableStateFlow(0)
+    val controllers = MutableStateFlow<List<ControllerInfo>>(emptyList())
+    val row = MutableStateFlow(0)
+    val col = MutableStateFlow(0)
 
     /** true enquanto a tela "Controlando a TV" está aberta no celular. */
     @Volatile var controlling = false
     var onLaunch: ((LibraryApp) -> Unit)? = null
+    var onCategory: ((Category) -> Unit)? = null
+    var onAddGame: (() -> Unit)? = null
+
+    fun visibleCategories(): List<Category> =
+        Category.entries.filter { it.name !in settings.value.hiddenCategories }
+
+    /** Quantidade de itens da linha atual (a linha de jogos tem o botão "Adicionar jogo" no fim). */
+    private fun count(r: Int): Int = if (r == 0) visibleCategories().size else games.value.size + 1
+
+    fun clamp() {
+        row.value = row.value.coerceIn(0, 1)
+        col.value = col.value.coerceIn(0, maxOf(0, count(row.value) - 1))
+    }
 
     fun move(delta: Int) {
-        val n = games.value.size
-        if (n == 0) return
-        selected.value = (selected.value + delta).coerceIn(0, n - 1)
+        col.value = (col.value + delta).coerceIn(0, maxOf(0, count(row.value) - 1))
+    }
+
+    fun moveV(delta: Int) {
+        row.value = (row.value + delta).coerceIn(0, 1)
+        col.value = col.value.coerceIn(0, maxOf(0, count(row.value) - 1))
+    }
+
+    fun focusGames() {
+        row.value = 1
+        col.value = 0
     }
 
     fun confirm() {
-        games.value.getOrNull(selected.value)?.let { onLaunch?.invoke(it) }
+        if (row.value == 0) {
+            visibleCategories().getOrNull(col.value)?.let { onCategory?.invoke(it) }
+        } else {
+            val g = games.value.getOrNull(col.value)
+            if (g != null) onLaunch?.invoke(g) else onAddGame?.invoke()
+        }
     }
 }
 
-/** Janela (Presentation) que desenha a Home em modo TV na tela externa. */
+/** Janela (Presentation) que desenha a Home na tela externa. */
 class TvPresentation(
     private val activity: ComponentActivity,
     display: Display
@@ -60,7 +92,6 @@ class TvPresentation(
 object ExternalSession {
     private var presentation: TvPresentation? = null
     val active = MutableStateFlow(false)
-    val activeFlow: StateFlow<Boolean> get() = active
 
     /** true se o usuário parou manualmente: evita religar sozinho enquanto a tela continuar conectada. */
     @Volatile var userStopped = false

@@ -35,3 +35,10 @@ Se o repositório já tiver histórico: `git push -u origin main --force`.
 - Foco inicial corrigido: o controle já seleciona o primeiro item de cada tela.
 - Jogos classificados: com suporte a controle, emuladores, precisam de mapeador (beta), sem classificação.
 - Botão Home do Android volta para a Home do app quando ele é a tela inicial.
+
+## Novidades da v5
+- Home da TV agora tem o MESMO layout da Home do celular (barra de status, categorias, jogos e dicas), só ampliado.
+  Navegação na TV: D-pad (esquerda/direita/cima/baixo), A confirma. Linha de cima = categorias; linha de baixo = jogos.
+- Novo módulo **Arcade** com 5 jogos nativos (pasta `games/`): Dungeon 3D (estilo Doom, raycasting), Nave Espacial,
+  Galinha na Estrada, Cobrinha e Tijolinhos. Controle ou toque. START pausa. Recordes salvos no aparelho.
+- A lógica dos jogos não depende do Android (interface `Gfx`), por isso foi compilada e testada por simulação.
