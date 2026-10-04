@@ -118,7 +118,7 @@ fun ConsoleSurface(
         label = "glow"
     )
     val base = background ?: st.cardColor
-    val fill = lerp(base, st.accent.copy(alpha = 0.38f), glow)
+    val fill = lerp(base, st.accent.copy(alpha = 0.6f), glow)
 
     Box(
         modifier = modifier
@@ -146,8 +146,8 @@ fun ConsoleSurface(
             .clip(shape)
             .background(fill)
             .border(
-                width = if (focused) 2.dp else 1.dp,
-                color = if (focused) st.accentSoft else Color.White.copy(alpha = 0.08f),
+                width = if (focused) 3.dp else 1.dp,
+                color = if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.08f),
                 shape = shape
             )
             .combinedClickable(
@@ -183,7 +183,7 @@ fun ConsoleCard(
         label = "cardGlow"
     )
     val base = background ?: st.cardColor
-    val fill = lerp(base, st.accent.copy(alpha = 0.38f), glow)
+    val fill = lerp(base, st.accent.copy(alpha = 0.6f), glow)
     Box(
         modifier = modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
@@ -204,8 +204,8 @@ fun ConsoleCard(
             .clip(shape)
             .background(fill)
             .border(
-                width = if (focused) 2.dp else 1.dp,
-                color = if (focused) st.accentSoft else Color.White.copy(alpha = 0.08f),
+                width = if (focused) 3.dp else 1.dp,
+                color = if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.08f),
                 shape = shape
             )
     ) {

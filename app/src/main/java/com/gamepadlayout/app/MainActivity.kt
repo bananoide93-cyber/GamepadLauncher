@@ -58,6 +58,8 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val down = event.action == KeyEvent.ACTION_DOWN
+        val padSrc = InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK or InputDevice.SOURCE_DPAD
+        if ((event.source and padSrc) != 0 && event.deviceId > 0) GamepadInput.markPad()
         // Jogo do Arcade rodando: o controle vira entrada de jogo.
         if (GamepadInput.gameActive && GamepadInput.handleGameKey(code, down, event.repeatCount)) return true
         val btn = GamepadInput.mapKey(code)
@@ -130,6 +132,25 @@ class MainActivity : ComponentActivity() {
         val t = SystemClock.uptimeMillis()
         dispatchKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0))
         dispatchKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0))
+    }
+
+    // ---------------------------------------------------------------- toque (modo só controle)
+
+    private var lastTouchToast = 0L
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val fromScreen = (ev.source and InputDevice.SOURCE_TOUCHSCREEN) == InputDevice.SOURCE_TOUCHSCREEN
+        if (fromScreen && GamepadInput.touchBlocked()) {
+            val now = SystemClock.uptimeMillis()
+            if (ev.actionMasked == MotionEvent.ACTION_DOWN && now - lastTouchToast > 4000) {
+                lastTouchToast = now
+                android.widget.Toast.makeText(
+                    this, "Controle em uso: o toque volta após 10 s sem usar o controle", android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            return true
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     // ---------------------------------------------------------------- analógicos / hat

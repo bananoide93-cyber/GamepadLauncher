@@ -55,3 +55,8 @@ Se o repositório já tiver histórico: `git push -u origin main --force`.
 - Abrir ao desbloquear (Configurações): exige permissão "exibir sobre outros apps", confirmação dupla, espera, intervalo mínimo, só com controle, só carregando, pausa (1 h/8 h), notificação com "Pausar" e "Desativar", e "Sair do app" no menu rápido (START).
 - Papel de parede: Roxo clássico, Synthwave, Céu estrelado ou foto da galeria, com ajuste de escurecimento.
 - Arcade: novos jogos "Estrada Neon" (corrida pseudo-3D) e "Corredor Veloz" (plataforma de velocidade).
+
+## v8
+- **Modo só-controle**: ao detectar um controle, o toque na tela é bloqueado; ele volta após 10 s sem usar o controle. Também há proteção de foco na Home (os botões passam a reagir ao controle sem precisar apertar X antes).
+- **Arcade com 9 jogos**: novos "Arena de Sobrevivência" (ondas, upgrades ao subir de nível, loja com moedas, 4 classes, chefe a cada 5 ondas) e "Caçadores de Monstros" (5 áreas, 54 monstros, 5 raridades, Dex, captura com cristais, progresso salvo).
+- **Nave**: chefe a cada 5 níveis e escolha de 1 upgrade (de 3) após cada chefe.

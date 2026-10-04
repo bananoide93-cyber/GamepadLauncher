@@ -90,6 +90,7 @@ fun SettingsScreen(
             item { ToggleRow("Modo Jogo (preparar antes de abrir o jogo)", settings.gameMode) { vm.set(K.GAME_MODE, it) } }
             item { ToggleRow("Mostrar Home na TV automaticamente", settings.autoTv) { vm.set(K.AUTO_TV, it) } }
             item { ToggleRow("Modo economia (menos efeitos e animações)", settings.powerSaver) { vm.set(K.POWER_SAVER, it) } }
+            item { ToggleRow("Modo só controle (bloqueia o toque enquanto usa o controle)", settings.controllerOnly) { vm.set(K.CONTROLLER_ONLY, it) } }
             item { ActionRow("Controle e mapeamento de botões", onOpenController) }
             item { ActionRow("Tela externa e transmissão", onOpenExternal) }
             item { ActionRow("Abrir ao desbloquear o celular (risco)", onOpenUnlock) }

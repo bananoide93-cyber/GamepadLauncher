@@ -210,7 +210,7 @@ internal fun categoryColor(c: Category): Color = when (c) {
 
 private fun subtitleOf(c: Category, gamesCount: Int): String = when (c) {
     Category.GAMES -> "$gamesCount na biblioteca"
-    Category.ARCADE -> "7 jogos nativos"
+    Category.ARCADE -> "9 jogos nativos"
     Category.FILES -> "Pastas e arquivos"
     Category.DOWNLOADS -> "Baixados"
     Category.BROWSER -> "Web com controle"

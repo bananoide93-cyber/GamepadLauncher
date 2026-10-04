@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -189,6 +190,7 @@ fun GamepadLayoutRoot() {
         SideEffect {
             GamepadInput.overlayOpen = overlayOpen
             GamepadInput.controllerConnected = controllers.isNotEmpty()
+            GamepadInput.controllerOnly = settings.controllerOnly
             TvNav.onLaunch = { startGame(it) }
         }
         LaunchedEffect(Unit) {
@@ -245,7 +247,19 @@ fun GamepadLayoutRoot() {
             TvNav.onAddGame = { push(Screen.AppPicker) }
         }
 
-        Box(Modifier.fillMaxSize()) {
+        val rootView = androidx.compose.ui.platform.LocalView.current
+        val focusMgr = androidx.compose.ui.platform.LocalFocusManager.current
+        var anyFocus by remember { mutableStateOf(false) }
+        // Garante foco: se o controle é usado e nada está focado, devolve o foco ao primeiro item (sem precisar tocar).
+        LaunchedEffect(Unit) {
+            GamepadInput.padActivity.collect {
+                if (!anyFocus && !GamepadInput.gameActive && stack.last() !is Screen.Boot) {
+                    if (!rootView.hasFocus()) rootView.requestFocus()
+                    focusMgr.moveFocus(androidx.compose.ui.focus.FocusDirection.Next)
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize().onFocusChanged { anyFocus = it.hasFocus }) {
             Box(Modifier.fillMaxSize().focusProperties { canFocus = !overlayOpen }) {
                 Crossfade(targetState = current, animationSpec = tween(st.dur(220)), label = "screen") { screen ->
                     when (screen) {

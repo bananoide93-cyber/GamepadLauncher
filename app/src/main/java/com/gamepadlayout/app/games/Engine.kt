@@ -22,12 +22,17 @@ class GameInput {
     var strafeLeft = false
     var strafeRight = false
 
+    /** Botão secundário (X ou Y) e o aperto único dele. */
+    var alt = false
+    var altPressed = false
+
     /** Passos discretos (-1, 0, 1) disparados uma vez por aperto; usados em jogos de grade. */
     var stepX = 0
     var stepY = 0
 
     fun clearEdges() {
         firePressed = false
+        altPressed = false
         stepX = 0
         stepY = 0
     }
@@ -91,6 +96,12 @@ abstract class MiniGame(
     var score = 0
     var best = 0
     var over = false
+
+    /** Jogos com progresso salvo (ex.: coleção de monstros): o app grava [save] quando [saveDirty] é true. */
+    open val persistent: Boolean = false
+    var saveDirty = false
+    open fun save(): String? = null
+    open fun load(data: String) {}
 
     abstract fun reset()
     abstract fun update(dt: Float, input: GameInput)

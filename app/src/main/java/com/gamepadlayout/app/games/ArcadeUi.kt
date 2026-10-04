@@ -63,6 +63,10 @@ import kotlin.math.max
 object ScoreStore {
     private fun prefs(c: Context) = c.getSharedPreferences("arcade_scores", Context.MODE_PRIVATE)
     fun best(c: Context, id: String): Int = prefs(c).getInt(id, 0)
+    fun state(c: Context, id: String): String? = prefs(c).getString("state_$id", null)
+    fun saveState(c: Context, id: String, data: String) {
+        prefs(c).edit().putString("state_$id", data).apply()
+    }
     fun save(c: Context, id: String, score: Int) {
         if (score > best(c, id)) prefs(c).edit().putInt(id, score).apply()
     }
@@ -200,6 +204,7 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
     LaunchedEffect(game) {
         game.best = ScoreStore.best(ctx, game.id)
         game.reset()
+        if (game.persistent) ScoreStore.state(ctx, game.id)?.let { runCatching { game.load(it) } }
     }
     // Voltar (gesto do sistema): pausa; na pausa, sai.
     BackHandler { if (paused) onExit() else paused = true }
@@ -213,6 +218,7 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
     LaunchedEffect(game) {
         var last = withFrameNanos { it }
         var prevFire = false
+        var prevAlt = false
         var prevSx = 0
         var prevSy = 0
         var saved = false
@@ -240,6 +246,10 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
                 input.fire = padFire
                 if (padFire && !prevFire) input.firePressed = true
                 prevFire = padFire
+                val padAlt = GamepadInput.isHeld(PadButton.X) || GamepadInput.isHeld(PadButton.Y)
+                input.alt = padAlt
+                if (padAlt && !prevAlt) input.altPressed = true
+                prevAlt = padAlt
                 if (touch.tap) {
                     input.firePressed = true
                     touch.tap = false
@@ -263,6 +273,10 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
                 } else {
                     overFor = 0f
                     game.update(dt, input)
+                    if (game.saveDirty) {
+                        game.saveDirty = false
+                        game.save()?.let { ScoreStore.saveState(ctx, game.id, it) }
+                    }
                 }
                 if (game.over && !saved) {
                     saved = true
@@ -336,7 +350,7 @@ fun ArcadeGameScreen(id: String, onExit: () -> Unit) {
                         focusRequester = focus,
                         shape = RoundedCornerShape(14.dp)
                     ) { Text("Continuar", Modifier.align(Alignment.Center), fontSize = 14.sp) }
-                    ConsoleSurface(
+                    if (!game.persistent) ConsoleSurface(
                         onClick = {
                             game.reset()
                             paused = false

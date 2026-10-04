@@ -41,7 +41,8 @@ data class AppSettings(
     val mapping: String = "",
     val wallpaper: String = "default",
     val wallpaperDim: Float = 0.25f,
-    val wallpaperRev: Int = 0
+    val wallpaperRev: Int = 0,
+    val controllerOnly: Boolean = true
 )
 
 object SettingsKeys {
@@ -67,6 +68,7 @@ object SettingsKeys {
     val WALLPAPER = stringPreferencesKey("wallpaper")
     val WALLPAPER_DIM = floatPreferencesKey("wallpaper_dim")
     val WALLPAPER_REV = intPreferencesKey("wallpaper_rev")
+    val CONTROLLER_ONLY = booleanPreferencesKey("controller_only")
 }
 
 private inline fun <reified E : Enum<E>> parse(name: String?, default: E): E =
@@ -98,7 +100,8 @@ class SettingsRepository(private val context: Context) {
             mapping = p[SettingsKeys.MAPPING] ?: d.mapping,
             wallpaper = p[SettingsKeys.WALLPAPER] ?: d.wallpaper,
             wallpaperDim = p[SettingsKeys.WALLPAPER_DIM] ?: d.wallpaperDim,
-            wallpaperRev = p[SettingsKeys.WALLPAPER_REV] ?: d.wallpaperRev
+            wallpaperRev = p[SettingsKeys.WALLPAPER_REV] ?: d.wallpaperRev,
+            controllerOnly = p[SettingsKeys.CONTROLLER_ONLY] ?: d.controllerOnly
         )
     }
 

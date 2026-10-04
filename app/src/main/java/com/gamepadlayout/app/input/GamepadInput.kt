@@ -27,6 +27,28 @@ object GamepadInput {
     @Volatile var dpadY = 0
     val held = BooleanArray(PadButton.entries.size)
     @Volatile var controllerConnected = false
+
+    /** "Modo só controle": com controle conectado e em uso, o toque na tela fica bloqueado. */
+    @Volatile var controllerOnly = true
+    @Volatile var lastPadInput = 0L
+
+    /** Pulso a cada entrada do controle (a interface usa para garantir que há algo focado). */
+    val padActivity = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    const val TOUCH_UNLOCK_MS = 10_000L
+
+    fun markPad() {
+        lastPadInput = SystemClock.uptimeMillis()
+        padActivity.tryEmit(Unit)
+    }
+
+    /** Toque bloqueado: controle conectado, modo ligado e o controle foi usado nos últimos 10 s. */
+    fun touchBlocked(): Boolean =
+        controllerOnly && controllerConnected && !browserTouchOk &&
+            SystemClock.uptimeMillis() - lastPadInput < TOUCH_UNLOCK_MS
+
+    /** Reservado: telas que sempre aceitam toque (nenhuma por padrão). */
+    @Volatile var browserTouchOk = false
     @Volatile var mapping: Map<PadButton, PadAction> = ControllerMapping.defaults
 
     @Volatile var leftX = 0f
@@ -79,6 +101,13 @@ object GamepadInput {
     }
 
     fun onMotion(ev: MotionEvent) {
+        val hx = ev.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val hy = ev.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        val ax = ev.getAxisValue(MotionEvent.AXIS_X)
+        val ay = ev.getAxisValue(MotionEvent.AXIS_Y)
+        if (hx != 0f || hy != 0f || abs(ax) > 0.45f || abs(ay) > 0.45f ||
+            abs(ev.getAxisValue(MotionEvent.AXIS_Z)) > 0.45f || abs(ev.getAxisValue(MotionEvent.AXIS_RZ)) > 0.45f
+        ) markPad()
         leftX = ev.getAxisValue(MotionEvent.AXIS_X)
         leftY = ev.getAxisValue(MotionEvent.AXIS_Y)
         val z = ev.getAxisValue(MotionEvent.AXIS_Z)
