@@ -1,0 +1,340 @@
+package com.gamepadlayout.app.games
+
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
+import kotlin.random.Random
+
+/** A galinha atravessando a rua (e o rio): avance o máximo que conseguir. */
+class ChickenGame : MiniGame(
+    "chicken", "Galinha na Estrada", "Atravesse ruas e rios. Cuidado com os carros e fique sobre os troncos!",
+    "D-pad: pular · A: avançar · toque: arraste ou toque para avançar"
+) {
+    private class Obj(var x: Float, val w: Float, val color: Long)
+
+    private class Row(val kind: Int, val speed: Float) {
+        val objs = ArrayList<Obj>()
+        val trees = BooleanArray(16)
+        var timer = 0f
+        var minW = 60f
+        var maxW = 100f
+        var minGap = 150f
+        var maxGap = 300f
+    }
+
+    private val grass = 0
+    private val road = 1
+    private val river = 2
+    private val cell = 50f
+    private val ncols = 16
+
+    private val rnd = Random.Default
+    private val rows = ArrayList<Row>()
+    private var blockLeft = 0
+    private var blockKind = 0
+    private var lastKind = 0
+
+    private var cr = 0
+    private var maxRow = 0
+    private var x = 8 * 50f + 25f
+    private var vr = 0f
+    private var vx = 8 * 50f + 25f
+    private var time = 0f
+
+    private val carColors = longArrayOf(0xFFE53935L, 0xFF42A5F5L, 0xFFFFD54FL, 0xFFAB47BCL, 0xFF26A69AL, 0xFFFF7043L)
+
+    init { reset() }
+
+    override fun reset() {
+        rows.clear()
+        blockLeft = 0
+        blockKind = 0
+        lastKind = 0
+        cr = 0
+        maxRow = 0
+        x = 8 * cell + cell / 2f
+        vx = x
+        vr = 0f
+        time = 0f
+        score = 0
+        over = false
+        ensure(16)
+    }
+
+    private fun ensure(upTo: Int) {
+        while (rows.size <= upTo) rows.add(genRow(rows.size))
+    }
+
+    private fun genRow(i: Int): Row {
+        if (i < 2) { lastKind = grass; return Row(grass, 0f) }
+        if (blockLeft == 0) {
+            val p = rnd.nextFloat()
+            blockKind = when {
+                lastKind != grass -> grass
+                p < 0.55f -> road
+                p < 0.80f -> river
+                else -> grass
+            }
+            blockLeft = when (blockKind) {
+                road -> 1 + rnd.nextInt(3)
+                river -> 1 + rnd.nextInt(2)
+                else -> 1
+            }
+        }
+        blockLeft--
+        lastKind = blockKind
+        val diff = 1f + min(0.8f, maxRow / 80f)
+        val dir = if (rnd.nextBoolean()) 1f else -1f
+        return when (blockKind) {
+            road -> {
+                val r = Row(road, dir * (90f + rnd.nextFloat() * 130f) * diff)
+                r.minW = 60f; r.maxW = 105f; r.minGap = 130f + abs(r.speed) * 0.6f; r.maxGap = r.minGap + 160f
+                fill(r)
+                r
+            }
+            river -> {
+                val r = Row(river, dir * (45f + rnd.nextFloat() * 55f) * min(diff, 1.4f))
+                r.minW = 110f; r.maxW = 190f; r.minGap = 60f; r.maxGap = 120f
+                fill(r)
+                r
+            }
+            else -> {
+                val r = Row(grass, 0f)
+                for (c in 0 until ncols) r.trees[c] = rnd.nextFloat() < 0.12f
+                r
+            }
+        }
+    }
+
+    private fun pick(a: Float, b: Float): Float = a + rnd.nextFloat() * (b - a)
+
+    private fun newObj(r: Row, x: Float, w: Float): Obj {
+        val color = if (r.kind == river) 0xFF8D6E63L else carColors[rnd.nextInt(carColors.size)]
+        return Obj(x, w, color)
+    }
+
+    private fun fill(r: Row) {
+        var pos = -rnd.nextFloat() * 150f
+        while (pos < 850f) {
+            val w = pick(r.minW, r.maxW)
+            r.objs.add(newObj(r, pos, w))
+            pos += w + pick(r.minGap, r.maxGap)
+        }
+        if (r.objs.isEmpty()) { r.timer = 0f; return }
+        r.timer = if (r.speed > 0f) {
+            val x0 = r.objs.minOf { it.x }
+            max(0.05f, (r.minGap - x0 - 10f) / abs(r.speed))
+        } else {
+            val r0 = r.objs.maxOf { it.x + it.w }
+            max(0.05f, (r.minGap - (810f - r0)) / abs(r.speed))
+        }
+    }
+
+    private fun updateRow(r: Row, dt: Float) {
+        if (r.kind == grass) return
+        for (o in r.objs) o.x += r.speed * dt
+        r.objs.removeAll { if (r.speed > 0f) it.x > 870f else it.x + it.w < -70f }
+        r.timer -= dt
+        if (r.timer <= 0f) {
+            val w = pick(r.minW, r.maxW)
+            val gap = pick(r.minGap, r.maxGap)
+            val sx = if (r.speed > 0f) -w - 10f else 810f
+            r.objs.add(newObj(r, sx, w))
+            r.timer = (w + gap) / abs(r.speed)
+        }
+    }
+
+    private fun cellOf(px: Float): Int = (px / cell).toInt().coerceIn(0, ncols - 1)
+
+    private fun tryMove(dc: Int, dr: Int) {
+        if (dr != 0) {
+            val nr = cr + dr
+            if (nr < 0 || nr < maxRow - 3) return
+            ensure(nr + 14)
+            val target = rows[nr]
+            if (target.kind == grass) {
+                val c = cellOf(x)
+                if (target.trees[c]) return
+                x = c * cell + cell / 2f
+            }
+            cr = nr
+            if (cr > maxRow) maxRow = cr
+        } else if (dc != 0) {
+            val row = rows[cr]
+            if (row.kind == grass) {
+                val nc = cellOf(x) + dc
+                if (nc < 0 || nc >= ncols || row.trees[nc]) return
+                x = nc * cell + cell / 2f
+            } else {
+                x = (x + dc * cell).coerceIn(15f, 785f)
+            }
+        }
+    }
+
+    override fun update(dt: Float, input: GameInput) {
+        if (over) return
+        time += dt
+        ensure(cr + 16)
+        val lo = max(0, cr - 3)
+        val hi = min(rows.size - 1, cr + 14)
+        for (i in lo..hi) updateRow(rows[i], dt)
+
+        if (input.stepY < 0 || input.firePressed) tryMove(0, 1)
+        else if (input.stepY > 0) tryMove(0, -1)
+        else if (input.stepX != 0) tryMove(input.stepX, 0)
+
+        val row = rows[cr]
+        if (row.kind == river) {
+            var onLog = false
+            for (o in row.objs) if (x >= o.x && x <= o.x + o.w) onLog = true
+            if (!onLog) { finish(); return }
+            x += row.speed * dt
+            if (x < 5f || x > 795f) { finish(); return }
+        } else if (row.kind == road) {
+            for (o in row.objs) {
+                if (abs(x - (o.x + o.w / 2f)) < o.w / 2f + 12f) { finish(); return }
+            }
+        }
+        score = maxRow
+        vr += (cr - vr) * min(1f, dt * 16f)
+        vx += (x - vx) * min(1f, dt * 22f)
+    }
+
+    private val henSpr = Sprite(
+        listOf(
+            "....RRR....",
+            "...RRRRR...",
+            "...WWWWW...",
+            "..WWKWKWW..",
+            "..WWWOWWW..",
+            "..WWWOWWW..",
+            ".WWWWWWWWW.",
+            "WWGWWWWWGWW",
+            "WWGWWWWWGWW",
+            ".WWWWWWWWW.",
+            "..WWWWWWW..",
+            "...O...O..."
+        ),
+        mapOf('W' to P.WHITE, 'G' to 0xFFC4CFDAL, 'K' to P.INK, 'O' to P.ORANGE, 'R' to 0xFFE0455BL)
+    )
+    private val treeSpr = Sprite(
+        listOf(
+            "....DDDD....",
+            "..DDGGGGDD..",
+            ".DGGLLGGGGD.",
+            ".DGLLGGGGGD.",
+            "DGGGGGGGGGGD",
+            "DGGGGGGLGGGD",
+            ".DGGGGGGGGD.",
+            "..DDGGGGDD..",
+            "....DDDD....",
+            ".....BB.....",
+            ".....BB.....",
+            ".....BB....."
+        ),
+        mapOf('D' to 0xFF1E6040L, 'G' to 0xFF2E8B4FL, 'L' to 0xFF4CB86AL, 'B' to 0xFF6B3F2AL)
+    )
+
+    override fun draw(g: Gfx) {
+        val v = View(g, 800f, 450f)
+        v.clear(0xFF2E8B4FL)
+        val camRow = vr - 2f
+        val first = camRow.toInt() - 1
+        for (r in max(0, first)..min(rows.size - 1, first + 11)) {
+            val y = 400f - (r - camRow) * cell
+            val row = rows[r]
+            when (row.kind) {
+                grass -> {
+                    v.rect(0f, y, 800f, cell, if (r % 2 == 0) 0xFF4CB86AL else 0xFF43AA62L)
+                    for (c in 0 until ncols) {
+                        val hsh = (r * 31 + c * 17) % 7
+                        if (hsh == 0) {
+                            v.rect(c * cell + 10f, y + 30f, 4f, 4f, P.YELLOW)
+                            v.rect(c * cell + 14f, y + 34f, 4f, 4f, P.WHITE)
+                        } else if (hsh == 3) {
+                            v.rect(c * cell + 30f, y + 14f, 4f, 8f, 0xFF2E8B4FL)
+                            v.rect(c * cell + 34f, y + 18f, 4f, 4f, 0xFF2E8B4FL)
+                        }
+                    }
+                    for (c in 0 until ncols) if (row.trees[c]) {
+                        v.rect(c * cell + 6f, y + 40f, 40f, 6f, C.alpha(C.BLACK, 0.18f))
+                        treeSpr.draw(v, c * cell + 1f, y + 1f, 4f)
+                    }
+                }
+                road -> {
+                    v.rect(0f, y, 800f, cell, 0xFF3B4254L)
+                    v.rect(0f, y, 800f, 3f, 0xFF2A3040L)
+                    val below = rows.getOrNull(r - 1)
+                    if (below != null && below.kind == road) {
+                        var dx = 0f
+                        while (dx < 800f) { v.rect(dx, y + cell - 2f, 26f, 4f, P.YELLOW); dx += 52f }
+                    }
+                    for (o in row.objs) drawCar(v, o, y, row.speed > 0f)
+                }
+                else -> {
+                    v.rect(0f, y, 800f, cell, 0xFF2F6FD0L)
+                    v.rect(0f, y + cell - 6f, 800f, 6f, 0xFF2A62BCL)
+                    var wx = ((time * 20f * (1 + r % 2)) % 80f) - 80f
+                    while (wx < 800f) {
+                        v.rect(wx, y + 10f + (r % 3) * 8f, 20f, 4f, 0xFF6FA8F0L)
+                        v.rect(wx + 40f, y + 30f, 14f, 4f, 0xFF6FA8F0L)
+                        wx += 80f
+                    }
+                    for (o in row.objs) drawLog(v, o, y)
+                }
+            }
+        }
+        drawChicken(v)
+        v.hudBar("PONTOS $score", "RECORDE $best")
+    }
+
+    private fun drawLog(v: View, o: Obj, y: Float) {
+        v.rect(o.x + 2f, y + 44f, o.w, 4f, C.alpha(C.BLACK, 0.22f))
+        v.bevel(o.x, y + 8f, o.w, cell - 20f, 0xFF9A6A44L, 3f)
+        var lx = o.x + 14f
+        while (lx < o.x + o.w - 14f) { v.rect(lx, y + 15f, 14f, 3f, 0xFF7A4F30L); v.rect(lx + 8f, y + 28f, 12f, 3f, 0xFF7A4F30L); lx += 34f }
+        v.rect(o.x, y + 8f, 8f, cell - 20f, 0xFFD2A878L)
+        v.rect(o.x + 2f, y + 16f, 4f, 14f, 0xFF9A6A44L)
+        v.rect(o.x + o.w - 8f, y + 8f, 8f, cell - 20f, 0xFFD2A878L)
+        v.rect(o.x + o.w - 6f, y + 16f, 4f, 14f, 0xFF9A6A44L)
+    }
+
+    private fun drawCar(v: View, o: Obj, y: Float, right: Boolean) {
+        v.rect(o.x + 2f, y + cell - 8f, o.w, 5f, C.alpha(C.BLACK, 0.25f))
+        v.bevel(o.x, y + 8f, o.w, cell - 20f, o.color, 3f)
+        val cabX = if (right) o.x + o.w * 0.30f else o.x + o.w * 0.18f
+        v.bevel(cabX, y + 12f, o.w * 0.5f, cell - 28f, C.shade(o.color, 0.8f), 2f)
+        v.rect(cabX + 4f, y + 16f, o.w * 0.5f - 8f, cell - 36f, 0xFF9FD8F5L)
+        v.rect(cabX + o.w * 0.25f - 1f, y + 16f, 2f, cell - 36f, C.shade(o.color, 0.8f))
+        val hx = if (right) o.x + o.w - 6f else o.x
+        v.rect(hx, y + 12f, 6f, 6f, P.YELLOW)
+        v.rect(hx, y + cell - 20f, 6f, 6f, P.YELLOW)
+        val tx = if (right) o.x else o.x + o.w - 4f
+        v.rect(tx, y + 12f, 4f, 6f, P.RED)
+        v.rect(tx, y + cell - 20f, 4f, 6f, P.RED)
+        for (wx in floatArrayOf(o.x + 8f, o.x + o.w - 24f)) {
+            v.rect(wx, y + 4f, 16f, 6f, P.INK)
+            v.rect(wx, y + cell - 12f, 16f, 6f, P.INK)
+            v.rect(wx + 5f, y + 5f, 6f, 3f, P.SLATE)
+            v.rect(wx + 5f, y + cell - 11f, 6f, 3f, P.SLATE)
+        }
+    }
+
+    private fun drawChicken(v: View) {
+        val d = min(1f, abs(cr - vr))
+        val lift = sin(d * 3.14159f) * 10f
+        val cx = vx
+        val cy = 325f - lift
+        if (over) {
+            v.rect(cx - 24f, cy + 6f, 48f, 12f, P.WHITE)
+            v.rect(cx - 14f, cy + 10f, 28f, 8f, P.RED)
+            v.rect(cx - 30f, cy, 6f, 6f, P.WHITE)
+            v.rect(cx + 26f, cy + 4f, 6f, 6f, P.WHITE)
+            v.rect(cx - 4f, cy - 8f, 6f, 6f, P.WHITE)
+            return
+        }
+        v.rect(cx - 16f, cy + 22f + lift, 32f, 6f, C.alpha(C.BLACK, 0.28f))
+        henSpr.draw(v, cx - 22f, cy - 30f, 4f)
+    }
+}
